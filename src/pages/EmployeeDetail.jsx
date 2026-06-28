@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, Pencil, Key, History, Trash2, ChevronRight, Plus } from "lucide-react";
+import { ArrowLeft, Pencil, Key, History, Trash2, Plus, AlertCircle } from "lucide-react";
 import { useApp } from "../context/AppContext.jsx";
 import Card from "../components/Card.jsx";
 import StatusPill from "../components/StatusPill.jsx";
@@ -7,14 +7,16 @@ import CategoryIcon from "../components/CategoryIcon.jsx";
 import { Row, Field } from "../components/Misc.jsx";
 import EmployeeFormModal from "../components/EmployeeFormModal.jsx";
 import ConfirmDialog from "../components/ConfirmDialog.jsx";
+import Modal from "../components/Modal.jsx";
 import { ORANGE } from "../theme.js";
 
 export default function EmployeeDetail() {
-  const { employees, assets, selectedEmployeeId, navigateTo, goBack, returnAsset, updateEmployee, deleteEmployee } = useApp();
+  const { employees, assets, selectedEmployeeId, navigateTo, goBack, returnAsset, updateEmployee, deleteEmployee, deleteEmployeeEnabled } = useApp();
   const emp = employees.find((e) => e.id === selectedEmployeeId) || employees[0];
   const myAssets = assets.filter((a) => a.assignedTo === emp.id);
   const [showEdit, setShowEdit] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDeleteError, setShowDeleteError] = useState(false);
   const [pendingReturnId, setPendingReturnId] = useState(null);
 
   function handleEditSubmit(form) {
@@ -69,90 +71,6 @@ export default function EmployeeDetail() {
             <Row label="Employee ID" value={`EMP-${emp.id}`} />
           </div>
 
-          <div style={{ borderTop: "1px solid #eef0f3", marginTop: 16, paddingTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
-            <button
-              onClick={() => setShowEdit(true)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                border: "1px solid #eef0f3",
-                borderRadius: 8,
-                padding: "10px 14px",
-                background: "#fff",
-                fontSize: 13,
-                fontWeight: 700,
-                color: "#475569",
-                cursor: "pointer",
-              }}
-            >
-              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Pencil size={14} /> Edit Profile
-              </span>
-              <ChevronRight size={14} />
-            </button>
-            <button
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                border: "1px solid #eef0f3",
-                borderRadius: 8,
-                padding: "10px 14px",
-                background: "#fff",
-                fontSize: 13,
-                fontWeight: 700,
-                color: "#475569",
-                cursor: "pointer",
-              }}
-            >
-              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Key size={14} /> Reset Password
-              </span>
-              <ChevronRight size={14} />
-            </button>
-            <button
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                border: "1px solid #eef0f3",
-                borderRadius: 8,
-                padding: "10px 14px",
-                background: "#fff",
-                fontSize: 13,
-                fontWeight: 700,
-                color: "#475569",
-                cursor: "pointer",
-              }}
-            >
-              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <History size={14} /> Access Logs
-              </span>
-              <ChevronRight size={14} />
-            </button>
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                border: "1px solid #fecaca",
-                borderRadius: 8,
-                padding: "10px 14px",
-                background: "#fff",
-                fontSize: 13,
-                fontWeight: 700,
-                color: "#dc2626",
-                cursor: "pointer",
-                marginTop: 4,
-              }}
-            >
-              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Trash2 size={14} /> Delete Employee
-              </span>
-            </button>
-          </div>
         </Card>
 
         <Card style={{ flex: 1 }}>
@@ -228,6 +146,73 @@ export default function EmployeeDetail() {
         </Card>
       </div>
 
+      <Card style={{ marginTop: 16, display: "flex", gap: 12, padding: "14px 22px" }}>
+        <button
+          onClick={() => setShowEdit(true)}
+          style={{
+            flex: 1, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center",
+            gap: 8, border: "1px solid #eef0f3", borderRadius: 8, padding: "11px 14px",
+            background: "#fff", fontSize: 13, fontWeight: 700, color: "#475569", cursor: "pointer",
+          }}
+        >
+          <Pencil size={14} /> Edit Profile
+        </button>
+        <button
+          style={{
+            flex: 1, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center",
+            gap: 8, border: "1px solid #eef0f3", borderRadius: 8, padding: "11px 14px",
+            background: "#fff", fontSize: 13, fontWeight: 700, color: "#475569", cursor: "pointer",
+          }}
+        >
+          <Key size={14} /> Reset Password
+        </button>
+        <button
+          style={{
+            flex: 1, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center",
+            gap: 8, border: "1px solid #eef0f3", borderRadius: 8, padding: "11px 14px",
+            background: "#fff", fontSize: 13, fontWeight: 700, color: "#475569", cursor: "pointer",
+          }}
+        >
+          <History size={14} /> Access Logs
+        </button>
+        <button
+          onClick={() => {
+            if (!deleteEmployeeEnabled) { setShowDeleteError(true); return; }
+            setShowDeleteConfirm(true);
+          }}
+          style={{
+            flex: 1, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center",
+            gap: 8, border: "1px solid #fecaca", borderRadius: 8, padding: "11px 14px",
+            background: "#fff", fontSize: 13, fontWeight: 700, color: "#dc2626", cursor: "pointer",
+          }}
+        >
+          <Trash2 size={14} /> Delete Employee
+        </button>
+      </Card>
+
+      {showDeleteError && (
+        <Modal title="Deletion Disabled" onClose={() => setShowDeleteError(false)} width={400}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 20 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 8, background: "#fee2e2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <AlertCircle size={18} color="#dc2626" />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>Employee deletion is not enabled</div>
+              <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.55 }}>
+                To delete an employee, go to the <strong>Employee Directory</strong> page, open <strong>Advanced Settings</strong> (⋮ button next to Add Employee), and enable the deletion permission.
+              </div>
+            </div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <button
+              onClick={() => setShowDeleteError(false)}
+              style={{ border: "none", background: "#0f172a", color: "#fff", fontWeight: 700, fontSize: 13, padding: "10px 22px", borderRadius: 8, cursor: "pointer" }}
+            >
+              Got it
+            </button>
+          </div>
+        </Modal>
+      )}
       {showEdit && <EmployeeFormModal onClose={() => setShowEdit(false)} onSubmit={handleEditSubmit} initialEmployee={emp} />}
       {showDeleteConfirm && (
         <ConfirmDialog

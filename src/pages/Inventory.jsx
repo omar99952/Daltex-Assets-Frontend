@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Boxes, Users, Building2, Wrench, Download, Plus, RotateCcw, ChevronRight, X } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Boxes, Users, Building2, Wrench, Download, Plus, RotateCcw, ChevronRight, X, MoreVertical, Settings, Trash2, AlertCircle } from "lucide-react";
 import { useApp } from "../context/AppContext.jsx";
 import BackButton from "../components/BackButton.jsx";
 import Card from "../components/Card.jsx";
@@ -8,8 +8,36 @@ import StatusPill from "../components/StatusPill.jsx";
 import CategoryIcon from "../components/CategoryIcon.jsx";
 import CsvPreviewModal from "../components/CsvPreviewModal.jsx";
 import ConfirmDialog from "../components/ConfirmDialog.jsx";
+import Modal from "../components/Modal.jsx";
 import { Row } from "../components/Misc.jsx";
 import { NAVY, ORANGE } from "../theme.js";
+
+function AssetAdvancedSettingsPopover({ deleteEnabled, setDeleteEnabled, onClose }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    function handleOutside(e) {
+      if (ref.current && !ref.current.contains(e.target)) onClose();
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [onClose]);
+
+  return (
+    <div ref={ref} style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, background: "#fff", border: "1px solid #eef0f3", borderRadius: 12, boxShadow: "0 12px 32px rgba(15,23,42,0.12)", width: 270, padding: 18, zIndex: 60 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 16 }}>
+        <Settings size={14} color="#475569" />
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>Advanced Settings</div>
+      </div>
+      <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", padding: "10px 12px", background: "#f8fafc", borderRadius: 8, border: "1px solid #eef0f3" }}>
+        <input type="checkbox" checked={deleteEnabled} onChange={(e) => setDeleteEnabled(e.target.checked)} style={{ marginTop: 2, accentColor: "#dc2626", cursor: "pointer", flexShrink: 0 }} />
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>Allow asset deletion</div>
+          <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 2 }}>{deleteEnabled ? "Deletion is currently enabled." : "Check to allow deleting assets."}</div>
+        </div>
+      </label>
+    </div>
+  );
+}
 
 const INVENTORY_CATEGORIES = ["PCs", "Monitors", "Printers", "Networking", "Peripherals"];
 // Asset records still use the original category string in seed data; map the
@@ -28,6 +56,7 @@ export default function Inventory() {
     navigateTo,
     setInventoryCategory,
   } = useApp();
+  const [mainFilter, setMainFilter] = useState("All");
 
   function openCategory(label) {
     setInventoryCategory(label);
@@ -43,14 +72,37 @@ export default function Inventory() {
   return (
     <div style={{ padding: 28 }}>
       <BackButton onClick={() => goBack()} />
-      <div style={{ fontWeight: 800, fontSize: 22, color: "#0f172a", marginBottom: 4 }}>System Inventory</div>
-      <div style={{ fontSize: 13.5, color: "#94a3b8", marginBottom: 24 }}>Choose a category to view and manage its assets.</div>
+      <div style={{ fontWeight: 800, fontSize: 22, color: "#0f172a", marginBottom: 4 }}>Assets</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+        <div style={{ fontSize: 13.5, color: "#94a3b8" }}>Choose a category to view and manage its assets.</div>
+        <div style={{ display: "flex", gap: 6 }}>
+          {["All", "Assigned", "Unassigned"].map((f) => (
+            <button
+              key={f}
+              onClick={() => setMainFilter(f)}
+              style={{
+                border: mainFilter === f ? "none" : "1px solid #eef0f3",
+                borderRadius: 7,
+                padding: "7px 16px",
+                fontWeight: 700,
+                fontSize: 12.5,
+                color: mainFilter === f ? "#fff" : "#475569",
+                background: mainFilter === f ? NAVY : "#fff",
+                cursor: "pointer",
+              }}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16 }}>
         {INVENTORY_CATEGORIES.map((label) => {
           const dataKey = categoryDataKey(label);
           const items = assets.filter((a) => a.category === dataKey);
           const assignedCount = items.filter((a) => a.status === "Assigned").length;
+          const unassignedCount = items.filter((a) => a.status !== "Assigned").length;
           return (
             <div
               key={label}
@@ -76,8 +128,24 @@ export default function Inventory() {
                 <CategoryIcon category={dataKey} size={18} />
               </div>
               <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 4 }}>{label}</div>
-              <div style={{ fontSize: 12.5, color: "#94a3b8" }}>{items.length} total</div>
-              <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 2 }}>{assignedCount} assigned</div>
+              {mainFilter === "All" && (
+                <>
+                  <div style={{ fontSize: 12.5, color: "#94a3b8" }}>{items.length} total</div>
+                  <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 2 }}>{assignedCount} assigned</div>
+                </>
+              )}
+              {mainFilter === "Assigned" && (
+                <>
+                  <div style={{ fontSize: 12.5, color: "#10b981", fontWeight: 700 }}>{assignedCount}</div>
+                  <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 2 }}>assigned</div>
+                </>
+              )}
+              {mainFilter === "Unassigned" && (
+                <>
+                  <div style={{ fontSize: 12.5, color: "#f59e0b", fontWeight: 700 }}>{unassignedCount}</div>
+                  <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 2 }}>unassigned</div>
+                </>
+              )}
             </div>
           );
         })}
@@ -124,7 +192,7 @@ function InventoryStatusView({ statusFilter, onClearFilter, onBack }) {
     <div style={{ padding: 28 }}>
       <BackButton onClick={onBack} />
       <div style={{ fontSize: 12.5, color: "#94a3b8", marginBottom: 6, display: "flex", alignItems: "center", gap: 8 }}>
-        Inventory &gt; Status: {statusFilter}
+        Assets &gt; Status: {statusFilter}
         <button
           onClick={onClearFilter}
           style={{ display: "flex", alignItems: "center", gap: 4, border: "none", background: "#fef3e2", color: ORANGE, fontWeight: 700, fontSize: 11, padding: "3px 8px", borderRadius: 999, cursor: "pointer" }}
@@ -132,7 +200,7 @@ function InventoryStatusView({ statusFilter, onClearFilter, onBack }) {
           Clear filter <X size={11} />
         </button>
       </div>
-      <div style={{ fontWeight: 800, fontSize: 22, color: "#0f172a", marginBottom: 20 }}>System Inventory</div>
+      <div style={{ fontWeight: 800, fontSize: 22, color: "#0f172a", marginBottom: 20 }}>Assets</div>
 
       <Card style={{ padding: 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px" }}>
@@ -233,6 +301,9 @@ export function InventoryCategoryPage() {
     assets,
     employees,
     returnAsset,
+    deleteAsset,
+    deleteAssetEnabled,
+    setDeleteAssetEnabled,
     inventoryCategory,
     goBack,
     openAssetDetail,
@@ -242,6 +313,10 @@ export function InventoryCategoryPage() {
   } = useApp();
   const [showCsvPreview, setShowCsvPreview] = useState(false);
   const [pendingReturnId, setPendingReturnId] = useState(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
+  const [showDeleteError, setShowDeleteError] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [assignmentFilter, setAssignmentFilter] = useState("All");
   const label = inventoryCategory || INVENTORY_CATEGORIES[0];
   const dataKey = categoryDataKey(label);
 
@@ -254,14 +329,19 @@ export function InventoryCategoryPage() {
   }
 
   const scopeBase = assets.filter((a) => a.category === dataKey);
-  const filtered = scopeBase.filter(
-    (a) =>
+  const filtered = scopeBase.filter((a) => {
+    const matchesSearch =
       query === "" ||
       a.model.toLowerCase().includes(query.toLowerCase()) ||
       a.serial.toLowerCase().includes(query.toLowerCase()) ||
       a.id.toLowerCase().includes(query.toLowerCase()) ||
-      a.brand.toLowerCase().includes(query.toLowerCase())
-  );
+      a.brand.toLowerCase().includes(query.toLowerCase());
+    const matchesAssignment =
+      assignmentFilter === "All" ? true :
+      assignmentFilter === "Assigned" ? a.status === "Assigned" :
+      a.status !== "Assigned";
+    return matchesSearch && matchesAssignment;
+  });
 
   const total = scopeBase.length;
   const assigned = scopeBase.filter((a) => a.status === "Assigned").length;
@@ -283,7 +363,7 @@ export function InventoryCategoryPage() {
   return (
     <div style={{ padding: 28 }}>
       <BackButton onClick={() => goBack()} />
-      <div style={{ fontSize: 12.5, color: "#94a3b8", marginBottom: 6 }}>Inventory &gt; {label}</div>
+      <div style={{ fontSize: 12.5, color: "#94a3b8", marginBottom: 6 }}>Assets &gt; {label}</div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 34, height: 34, borderRadius: 8, background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -291,43 +371,31 @@ export function InventoryCategoryPage() {
           </div>
           <div style={{ fontWeight: 800, fontSize: 22, color: "#0f172a" }}>{label}</div>
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           <button
             onClick={() => setShowCsvPreview(true)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 7,
-              border: "1px solid #eef0f3",
-              borderRadius: 8,
-              padding: "9px 16px",
-              fontWeight: 700,
-              fontSize: 13,
-              color: "#475569",
-              background: "#fff",
-              cursor: "pointer",
-            }}
+            style={{ display: "flex", alignItems: "center", gap: 7, border: "1px solid #eef0f3", borderRadius: 8, padding: "9px 16px", fontWeight: 700, fontSize: 13, color: "#475569", background: "#fff", cursor: "pointer" }}
           >
             <Download size={14} /> Export CSV
           </button>
           <button
             onClick={() => setShowAddDeviceModal(true)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 7,
-              border: "none",
-              borderRadius: 8,
-              padding: "9px 16px",
-              fontWeight: 700,
-              fontSize: 13,
-              color: "#fff",
-              background: NAVY,
-              cursor: "pointer",
-            }}
+            style={{ display: "flex", alignItems: "center", gap: 7, border: "none", borderRadius: 8, padding: "9px 16px", fontWeight: 700, fontSize: 13, color: "#fff", background: NAVY, cursor: "pointer" }}
           >
             <Plus size={14} /> Add Device
           </button>
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={() => setShowAdvanced((s) => !s)}
+              title="Advanced Settings"
+              style={{ border: `1px solid ${deleteAssetEnabled ? "#fecaca" : "#eef0f3"}`, borderRadius: 8, padding: 0, height: 38, width: 38, display: "flex", alignItems: "center", justifyContent: "center", background: showAdvanced ? "#f1f5f9" : deleteAssetEnabled ? "#fff5f5" : "#fff", cursor: "pointer", color: deleteAssetEnabled ? "#dc2626" : "#475569" }}
+            >
+              <MoreVertical size={14} />
+            </button>
+            {showAdvanced && (
+              <AssetAdvancedSettingsPopover deleteEnabled={deleteAssetEnabled} setDeleteEnabled={setDeleteAssetEnabled} onClose={() => setShowAdvanced(false)} />
+            )}
+          </div>
         </div>
       </div>
 
@@ -349,6 +417,27 @@ export function InventoryCategoryPage() {
           danger
           sub={<div style={{ fontSize: 12, color: "#94a3b8" }}>Pending fix</div>}
         />
+      </div>
+
+      <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+        {["All", "Assigned", "Unassigned"].map((f) => (
+          <button
+            key={f}
+            onClick={() => setAssignmentFilter(f)}
+            style={{
+              border: assignmentFilter === f ? "none" : "1px solid #eef0f3",
+              borderRadius: 7,
+              padding: "7px 16px",
+              fontWeight: 700,
+              fontSize: 12.5,
+              color: assignmentFilter === f ? "#fff" : "#475569",
+              background: assignmentFilter === f ? NAVY : "#fff",
+              cursor: "pointer",
+            }}
+          >
+            {f}
+          </button>
+        ))}
       </div>
 
       <Card style={{ padding: 0 }}>
@@ -393,25 +482,31 @@ export function InventoryCategoryPage() {
                 <td style={{ padding: "14px 20px", fontSize: 13, color: "#475569" }}>{a.branch}</td>
                 <td style={{ padding: "14px 20px" }}>
                   {a.status === "Assigned" ? (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setPendingReturnId(a.id);
-                      }}
-                      title="Return to stock"
-                      style={{ border: "none", background: "none", cursor: "pointer", color: "#94a3b8" }}
-                    >
+                    <button onClick={(e) => { e.stopPropagation(); setPendingReturnId(a.id); }} title="Return to stock" style={{ border: "none", background: "none", cursor: "pointer", color: "#94a3b8" }}>
                       <RotateCcw size={16} />
                     </button>
                   ) : (
                     <ChevronRight size={16} color="#cbd5e1" />
                   )}
                 </td>
+                <td style={{ padding: "14px 20px" }}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!deleteAssetEnabled) { setShowDeleteError(true); return; }
+                      setPendingDeleteId(a.id);
+                    }}
+                    title="Delete asset"
+                    style={{ border: "none", background: "none", cursor: "pointer", color: "#fca5a5" }}
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+                <td colSpan={9} style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
                   No assets match your search in this category.
                 </td>
               </tr>
@@ -432,6 +527,33 @@ export function InventoryCategoryPage() {
           onConfirm={() => { returnAsset(pendingReturnId); setPendingReturnId(null); }}
           onCancel={() => setPendingReturnId(null)}
         />
+      )}
+      {pendingDeleteId && (
+        <ConfirmDialog
+          title="Delete Asset"
+          message="Are you sure you want to permanently delete this asset? This cannot be undone."
+          confirmLabel="Delete Asset"
+          onConfirm={() => { deleteAsset(pendingDeleteId); setPendingDeleteId(null); }}
+          onCancel={() => setPendingDeleteId(null)}
+        />
+      )}
+      {showDeleteError && (
+        <Modal title="Deletion Disabled" onClose={() => setShowDeleteError(false)} width={400}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 20 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 8, background: "#fee2e2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <AlertCircle size={18} color="#dc2626" />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>Asset deletion is not enabled</div>
+              <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.55 }}>
+                Open <strong>Advanced Settings</strong> (⋮ button in the toolbar) and enable asset deletion to proceed.
+              </div>
+            </div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <button onClick={() => setShowDeleteError(false)} style={{ border: "none", background: "#0f172a", color: "#fff", fontWeight: 700, fontSize: 13, padding: "10px 22px", borderRadius: 8, cursor: "pointer" }}>Got it</button>
+          </div>
+        </Modal>
       )}
     </div>
   );

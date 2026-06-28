@@ -24,7 +24,7 @@ import ContractPreview from "./pages/ContractPreview.jsx";
 const NAV_ITEMS = [
   { key: "home", label: "Home", icon: <Home size={17} /> },
   { key: "dashboard", label: "Dashboard", icon: <LayoutGrid size={17} /> },
-  { key: "inventory", label: "Inventory", icon: <Boxes size={17} /> },
+  { key: "inventory", label: "Assets", icon: <Boxes size={17} /> },
   { key: "employees", label: "Employees", icon: <Users size={17} /> },
   { key: "branches", label: "Branches", icon: <Building2 size={17} /> },
   { key: "assignments", label: "Assignments", icon: <ClipboardCheck size={17} /> },

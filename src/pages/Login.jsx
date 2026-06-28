@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Building2, Lock, Mail, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Lock, Mail, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { useApp } from "../context/AppContext.jsx";
 import { NAVY, ORANGE } from "../theme.js";
+import daltexLogo from "../assets/daltex-logo.png";
 
 const DEMO_ACCOUNTS = [
   { email: "alex.mercer@daltexhq.com", password: "daltex2024", name: "Alex Mercer", role: "Systems Admin", avatar: "#475569" },
@@ -58,10 +59,8 @@ export default function Login() {
             justifyContent: "space-between",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 38, height: 38, borderRadius: 9, background: ORANGE, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Building2 size={20} color="#fff" />
-            </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <img src={daltexLogo} alt="Daltex" style={{ width: 52, height: 52, objectFit: "contain", borderRadius: 8 }} />
             <div>
               <div style={{ fontWeight: 800, fontSize: 17 }}>DALTEX HQ</div>
               <div style={{ fontSize: 11.5, color: "#94a3b8" }}>IT Asset Management</div>

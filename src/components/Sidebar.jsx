@@ -1,5 +1,6 @@
 import { Plus, PanelLeftOpen, PanelLeftClose } from "lucide-react";
 import { NAVY, ORANGE } from "../theme.js";
+import daltexLogo from "../assets/daltex-logo.png";
 
 export default function Sidebar({ items, activePage, onNavigate, onAddNewAsset, brand, sub, collapsed, onToggleCollapse }) {
   const width = collapsed ? 72 : 230;
@@ -18,10 +19,15 @@ export default function Sidebar({ items, activePage, onNavigate, onAddNewAsset, 
       }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: collapsed ? "center" : "space-between", padding: collapsed ? "0 0 28px" : "0 8px 28px" }}>
-        {!collapsed && (
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 18, letterSpacing: 0.3, whiteSpace: "nowrap" }}>{brand}</div>
-            <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 2, whiteSpace: "nowrap" }}>{sub}</div>
+        {collapsed ? (
+          <img src={daltexLogo} alt="Daltex" style={{ width: 36, height: 36, objectFit: "contain", borderRadius: 6 }} />
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <img src={daltexLogo} alt="Daltex" style={{ width: 42, height: 42, objectFit: "contain", borderRadius: 6 }} />
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 18, letterSpacing: 0.3, whiteSpace: "nowrap" }}>{brand}</div>
+              <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 2, whiteSpace: "nowrap" }}>{sub}</div>
+            </div>
           </div>
         )}
         <button

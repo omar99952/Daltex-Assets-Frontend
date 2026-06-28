@@ -1,11 +1,40 @@
 import { useState, useEffect, useRef } from "react";
-import { Filter, Download, Building2, Boxes, ClipboardCheck, CheckCircle2, AlertTriangle, ChevronRight, Check } from "lucide-react";
+import { Filter, Download, Building2, Boxes, ClipboardCheck, CheckCircle2, AlertTriangle, ChevronRight, Check, MoreVertical, Settings, Trash2, AlertCircle } from "lucide-react";
 import { useApp } from "../context/AppContext.jsx";
 import BackButton from "../components/BackButton.jsx";
 import Card from "../components/Card.jsx";
 import StatCard from "../components/StatCard.jsx";
 import CsvPreviewModal from "../components/CsvPreviewModal.jsx";
+import ConfirmDialog from "../components/ConfirmDialog.jsx";
+import Modal from "../components/Modal.jsx";
 import { NAVY, ORANGE } from "../theme.js";
+
+function BranchAdvancedSettingsPopover({ deleteEnabled, setDeleteEnabled, onClose }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    function handleOutside(e) {
+      if (ref.current && !ref.current.contains(e.target)) onClose();
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, [onClose]);
+
+  return (
+    <div ref={ref} style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, background: "#fff", border: "1px solid #eef0f3", borderRadius: 12, boxShadow: "0 12px 32px rgba(15,23,42,0.12)", width: 270, padding: 18, zIndex: 60 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 16 }}>
+        <Settings size={14} color="#475569" />
+        <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>Advanced Settings</div>
+      </div>
+      <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", padding: "10px 12px", background: "#f8fafc", borderRadius: 8, border: "1px solid #eef0f3" }}>
+        <input type="checkbox" checked={deleteEnabled} onChange={(e) => setDeleteEnabled(e.target.checked)} style={{ marginTop: 2, accentColor: "#dc2626", cursor: "pointer", flexShrink: 0 }} />
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>Allow branch deletion</div>
+          <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 2 }}>{deleteEnabled ? "Deletion is currently enabled." : "Check to allow deleting branches."}</div>
+        </div>
+      </label>
+    </div>
+  );
+}
 
 function FilterPopover({ healthFilter, setHealthFilter, deptFilter, setDeptFilter, allDepts, onClose }) {
   const ref = useRef(null);
@@ -114,11 +143,14 @@ function FilterPopover({ healthFilter, setHealthFilter, deptFilter, setDeptFilte
 }
 
 export default function Branches() {
-  const { branches, navigateTo, goBack, setSelectedBranchId } = useApp();
+  const { branches, navigateTo, goBack, setSelectedBranchId, deleteBranch, deleteBranchEnabled, setDeleteBranchEnabled } = useApp();
   const [healthFilter, setHealthFilter] = useState(null);
   const [deptFilter, setDeptFilter] = useState(null);
   const [showFilter, setShowFilter] = useState(false);
   const [showCsvPreview, setShowCsvPreview] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
+  const [showDeleteError, setShowDeleteError] = useState(false);
 
   const allDepts = Array.from(new Set(branches.flatMap((b) => b.departments))).sort();
 
@@ -190,22 +222,22 @@ export default function Branches() {
           </div>
           <button
             onClick={() => setShowCsvPreview(true)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 7,
-              border: "none",
-              borderRadius: 8,
-              padding: "9px 16px",
-              fontWeight: 700,
-              fontSize: 13,
-              color: "#fff",
-              background: NAVY,
-              cursor: "pointer",
-            }}
+            style={{ display: "flex", alignItems: "center", gap: 7, border: "none", borderRadius: 8, padding: "9px 16px", fontWeight: 700, fontSize: 13, color: "#fff", background: NAVY, cursor: "pointer" }}
           >
             <Download size={14} /> Export Data
           </button>
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={() => setShowAdvanced((s) => !s)}
+              title="Advanced Settings"
+              style={{ border: `1px solid ${deleteBranchEnabled ? "#fecaca" : "#eef0f3"}`, borderRadius: 8, padding: 0, height: 38, width: 38, display: "flex", alignItems: "center", justifyContent: "center", background: showAdvanced ? "#f1f5f9" : deleteBranchEnabled ? "#fff5f5" : "#fff", cursor: "pointer", color: deleteBranchEnabled ? "#dc2626" : "#475569" }}
+            >
+              <MoreVertical size={14} />
+            </button>
+            {showAdvanced && (
+              <BranchAdvancedSettingsPopover deleteEnabled={deleteBranchEnabled} setDeleteEnabled={setDeleteBranchEnabled} onClose={() => setShowAdvanced(false)} />
+            )}
+          </div>
         </div>
       </div>
 
@@ -291,8 +323,19 @@ export default function Branches() {
                       }}
                     />
                   </td>
-                  <td style={{ padding: "14px 20px" }}>
+                  <td style={{ padding: "14px 20px", display: "flex", alignItems: "center", gap: 10 }}>
                     <ChevronRight size={15} color="#cbd5e1" />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!deleteBranchEnabled) { setShowDeleteError(true); return; }
+                        setPendingDeleteId(b.id);
+                      }}
+                      title="Delete branch"
+                      style={{ border: "none", background: "none", cursor: "pointer", color: "#fca5a5" }}
+                    >
+                      <Trash2 size={15} />
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -362,6 +405,33 @@ export default function Branches() {
 
       {showCsvPreview && (
         <CsvPreviewModal onClose={() => setShowCsvPreview(false)} rows={csvRows} headers={csvHeaders} filename="branches_export.csv" />
+      )}
+      {pendingDeleteId && (
+        <ConfirmDialog
+          title="Delete Branch"
+          message={`Are you sure you want to permanently delete this branch? This cannot be undone.`}
+          confirmLabel="Delete Branch"
+          onConfirm={() => { deleteBranch(pendingDeleteId); setPendingDeleteId(null); }}
+          onCancel={() => setPendingDeleteId(null)}
+        />
+      )}
+      {showDeleteError && (
+        <Modal title="Deletion Disabled" onClose={() => setShowDeleteError(false)} width={400}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 20 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 8, background: "#fee2e2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <AlertCircle size={18} color="#dc2626" />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>Branch deletion is not enabled</div>
+              <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.55 }}>
+                Open <strong>Advanced Settings</strong> (⋮ button in the toolbar) and enable branch deletion to proceed.
+              </div>
+            </div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <button onClick={() => setShowDeleteError(false)} style={{ border: "none", background: "#0f172a", color: "#fff", fontWeight: 700, fontSize: 13, padding: "10px 22px", borderRadius: 8, cursor: "pointer" }}>Got it</button>
+          </div>
+        </Modal>
       )}
     </div>
   );

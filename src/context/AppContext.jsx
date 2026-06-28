@@ -12,7 +12,7 @@ export function useApp() {
 export function AppProvider({ children }) {
   const [assets, setAssets] = useState(initialAssets);
   const [employees, setEmployees] = useState(initialEmployees);
-  const [branches] = useState(initialBranches);
+  const [branches, setBranches] = useState(initialBranches);
   const [activity, setActivity] = useState(initialActivity);
   const [page, setPageRaw] = useState("home");
   const [pageHistory, setPageHistory] = useState([]);
@@ -36,6 +36,10 @@ export function AppProvider({ children }) {
     compactMode: false,
     weeklyDigest: true,
   });
+  const [deleteEmployeeEnabled, setDeleteEmployeeEnabled] = useState(false);
+  const [deleteAssetEnabled, setDeleteAssetEnabled] = useState(false);
+  const [deleteBranchEnabled, setDeleteBranchEnabled] = useState(false);
+  const [deleteDeptEnabled, setDeleteDeptEnabled] = useState(false);
 
   // navigateTo pushes the page we're leaving onto the history stack, so goBack
   // always returns to wherever the person actually came from (not a fixed page).
@@ -168,6 +172,34 @@ export function AppProvider({ children }) {
         ...prev,
       ]);
     }
+  }
+
+  function deleteAsset(id) {
+    const asset = assets.find((a) => a.id === id);
+    setAssets((prev) => prev.filter((a) => a.id !== id));
+    if (asset) {
+      setActivity((prev) => [
+        { id: Date.now(), title: asset.model, desc: "Asset removed from inventory", sub: asset.branch, time: "Just now", type: "return" },
+        ...prev,
+      ]);
+    }
+  }
+
+  function deleteBranch(id) {
+    const branch = branches.find((b) => b.id === id);
+    setBranches((prev) => prev.filter((b) => b.id !== id));
+    if (branch) {
+      setActivity((prev) => [
+        { id: Date.now(), title: branch.name, desc: "Branch removed", sub: branch.region, time: "Just now", type: "return" },
+        ...prev,
+      ]);
+    }
+  }
+
+  function removeDepartment(branchId, deptName) {
+    setBranches((prev) =>
+      prev.map((b) => b.id === branchId ? { ...b, departments: b.departments.filter((d) => d !== deptName) } : b)
+    );
   }
 
   function markActivityAsRead() {
@@ -328,6 +360,17 @@ export function AppProvider({ children }) {
     updateSetting,
     sidebarCollapsed,
     setSidebarCollapsed,
+    deleteEmployeeEnabled,
+    setDeleteEmployeeEnabled,
+    deleteAssetEnabled,
+    setDeleteAssetEnabled,
+    deleteBranchEnabled,
+    setDeleteBranchEnabled,
+    deleteDeptEnabled,
+    setDeleteDeptEnabled,
+    deleteAsset,
+    deleteBranch,
+    removeDepartment,
   };
 
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;
