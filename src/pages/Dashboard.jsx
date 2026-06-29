@@ -1,3 +1,6 @@
+import { useState, useEffect, useRef } from "react";
+import { apiGet, apiPost, apiDelete, apiPatch } from "../api/client.js";
+import { ENDPOINTS } from "../api/endpoints.js";
 import { ClipboardCheck, Users, Building2, Wrench, Filter, ChevronRight, Laptop, RotateCcw } from "lucide-react";
 import { useApp } from "../context/AppContext.jsx";
 import Card from "../components/Card.jsx";
@@ -10,9 +13,9 @@ export default function Dashboard() {
 
   const branchDist = [
     { name: "Sadat City Farm", value: 542, pct: 43, color: NAVY },
-    { name: "Khatatba Branch", value: 318, pct: 25, color: ORANGE },
+    { name: "Khatatba Branch", value: 318, pct: 25, color: NAVY },
     { name: "Headquarters (Cairo)", value: 290, pct: 23, color: NAVY },
-    { name: "Logistics & Sorting", value: 122, pct: 9, color: "#cbd5e1" },
+    { name: "Logistics & Sorting", value: 122, pct: 9, color: NAVY },
   ];
 
   return (
@@ -27,19 +30,19 @@ export default function Dashboard() {
           onClick={() => goToInventory(null)}
         />
         <StatCard
-          icon={<Users size={18} color="#475569" />}
+          icon={<Users size={18} color={NAVY} />}
           iconBg="#e2e8f0"
           label="ASSIGNED"
           value={stats.assigned + 1093}
           onClick={() => goToInventory("Assigned")}
           sub={
             <div style={{ height: 6, borderRadius: 99, background: "#eef0f3", overflow: "hidden" }}>
-              <div style={{ width: "86%", height: "100%", background: ORANGE }} />
+              <div style={{ width: "86%", height: "100%", background: NAVY }} />
             </div>
           }
         />
         <StatCard
-          icon={<Building2 size={18} color="#475569" />}
+          icon={<Building2 size={18} color={NAVY} />}
           iconBg="#e2e8f0"
           label="IN STOCK"
           value={stats.inStock + 161}
@@ -47,15 +50,14 @@ export default function Dashboard() {
           sub={<div style={{ fontSize: 12, color: "#94a3b8" }}>Available for deployment</div>}
         />
         <StatCard
-          icon={<Wrench size={18} color="#dc2626" />}
-          iconBg="#fee2e2"
+          icon={<Wrench size={18} color={NAVY} />}
+          iconBg="#e2e8f0"
           label="IN MAINTENANCE"
           value={stats.maintenance + 12}
-          danger
           onClick={() => goToInventory("Repair")}
           sub={
             <div style={{ display: "flex", gap: 6 }}>
-              <span style={{ background: "#fee2e2", color: "#dc2626", fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 999 }}>8 Critical</span>
+              <span style={{ background: "#f1f5f9", color: "#475569", fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 999 }}>8 Critical</span>
               <span style={{ background: "#f1f5f9", color: "#475569", fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 999 }}>6 Pending</span>
             </div>
           }
@@ -103,20 +105,7 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
-          <div style={{ display: "flex", gap: 18, marginTop: 22, fontSize: 12, color: "#64748b" }}>
-            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <Dot color={NAVY} />
-              Laptops
-            </span>
-            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <Dot color={ORANGE} />
-              Networking
-            </span>
-            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <Dot color="#0f172a" />
-              Mobile Devices
-            </span>
-          </div>
+          
         </Card>
 
         <Card style={{ flex: 1 }}>

@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import { apiGet, apiPost, apiDelete, apiPatch } from "../api/client.js";
+import { ENDPOINTS } from "../api/endpoints.js";
 import { ArrowLeft, Boxes, Users, ClipboardCheck, MoreVertical, Settings, X, AlertCircle } from "lucide-react";
 import { useApp } from "../context/AppContext.jsx";
 import Card from "../components/Card.jsx";

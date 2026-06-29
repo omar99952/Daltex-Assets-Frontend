@@ -1,6 +1,6 @@
-import { Plus, PanelLeftOpen, PanelLeftClose } from "lucide-react";
+import { Plus, Menu } from "lucide-react";
 import { NAVY, ORANGE } from "../theme.js";
-import daltexLogo from "../assets/daltex-logo.png";
+import daltexLogo from "../assets/daltex-logo-light-final.png";
 
 export default function Sidebar({ items, activePage, onNavigate, onAddNewAsset, brand, sub, collapsed, onToggleCollapse }) {
   const width = collapsed ? 72 : 230;
@@ -19,9 +19,7 @@ export default function Sidebar({ items, activePage, onNavigate, onAddNewAsset, 
       }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: collapsed ? "center" : "space-between", padding: collapsed ? "0 0 28px" : "0 8px 28px" }}>
-        {collapsed ? (
-          <img src={daltexLogo} alt="Daltex" style={{ width: 36, height: 36, objectFit: "contain", borderRadius: 6 }} />
-        ) : (
+        {collapsed ? null : (
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <img src={daltexLogo} alt="Daltex" style={{ width: 42, height: 42, objectFit: "contain", borderRadius: 6 }} />
             <div>
@@ -37,8 +35,8 @@ export default function Sidebar({ items, activePage, onNavigate, onAddNewAsset, 
             border: "none",
             background: "rgba(255,255,255,0.08)",
             borderRadius: 7,
-            width: 28,
-            height: 28,
+            width: 32,
+            height: 32,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -47,7 +45,7 @@ export default function Sidebar({ items, activePage, onNavigate, onAddNewAsset, 
             flexShrink: 0,
           }}
         >
-          {collapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
+          <Menu size={17} />
         </button>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1 }}>

@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState,useEffect } from "react";
+import { apiGet, apiPost, apiDelete, apiPatch } from "../api/client.js";
+import { ENDPOINTS } from "../api/endpoints.js";
 import { Plus, RotateCcw, Laptop, Wrench, ClipboardCheck } from "lucide-react";
 import { useApp } from "../context/AppContext.jsx";
 import BackButton from "../components/BackButton.jsx";

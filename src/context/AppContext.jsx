@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useMemo } from "react";
-import { initialAssets, initialEmployees, initialBranches, initialActivity } from "../data/seedData.js";
+import { initialAssets, initialEmployees, initialBranches, initialActivity, initialSectors } from "../data/seedData.js";
 
 const AppCtx = createContext(null);
 
@@ -13,6 +13,7 @@ export function AppProvider({ children }) {
   const [assets, setAssets] = useState(initialAssets);
   const [employees, setEmployees] = useState(initialEmployees);
   const [branches, setBranches] = useState(initialBranches);
+  const [sectors] = useState(initialSectors);
   const [activity, setActivity] = useState(initialActivity);
   const [page, setPageRaw] = useState("home");
   const [pageHistory, setPageHistory] = useState([]);
@@ -315,6 +316,7 @@ export function AppProvider({ children }) {
     assets,
     employees,
     branches,
+    sectors,
     activity,
     stats,
     page,

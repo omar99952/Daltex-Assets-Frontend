@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState,useEffect } from "react";
+import { apiGet, apiPost, apiDelete, apiPatch } from "../api/client.js";
+import { ENDPOINTS } from "../api/endpoints.js";
 import { ArrowLeft, Pencil, Key, History, Trash2, Plus, AlertCircle } from "lucide-react";
 import { useApp } from "../context/AppContext.jsx";
 import Card from "../components/Card.jsx";
@@ -10,21 +12,74 @@ import ConfirmDialog from "../components/ConfirmDialog.jsx";
 import Modal from "../components/Modal.jsx";
 import { ORANGE } from "../theme.js";
 
+function mapApiEmployee(e) {
+  return {
+    id: String(e.employee_code),
+    name: e.employee_name_en || "",
+    nameAr: e.employee_name_ar || "",
+    role: e.role || e.job_title || "",
+    dept: typeof e.last_known_department === "object"
+      ? (e.last_known_department?.name || "")
+      : String(e.last_known_department || ""),
+    branchId: typeof e.last_known_branch === "object"
+      ? String(e.last_known_branch?.branch_id || e.last_known_branch?.id || "")
+      : String(e.last_known_branch || ""),
+    email: e.email || "",
+    status: e.status || "Active",
+    tenure: e.tenure || "",
+    avatarColor: "#0f172a",
+  };
+}
+
 export default function EmployeeDetail() {
-  const { employees, assets, selectedEmployeeId, navigateTo, goBack, returnAsset, updateEmployee, deleteEmployee, deleteEmployeeEnabled } = useApp();
-  const emp = employees.find((e) => e.id === selectedEmployeeId) || employees[0];
-  const myAssets = assets.filter((a) => a.assignedTo === emp.id);
+  const { employees, assets, branches, selectedEmployeeId, navigateTo, goBack, returnAsset, updateEmployee, deleteEmployee, deleteEmployeeEnabled } = useApp();
+
+  // Seed fallback while API loads
+  const seedEmp = employees.find((e) => e.id === selectedEmployeeId) || employees[0];
+
+  const [apiEmp, setApiEmp] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [showEdit, setShowEdit] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDeleteError, setShowDeleteError] = useState(false);
   const [pendingReturnId, setPendingReturnId] = useState(null);
 
-  function handleEditSubmit(form) {
-    updateEmployee(emp.id, form);
+  useEffect(() => {
+    if (!selectedEmployeeId) return;
+    setLoading(true);
+    apiGet(ENDPOINTS.get_employee_by_id(selectedEmployeeId))
+      .then((data) => setApiEmp(mapApiEmployee(data)))
+      .catch(() => setApiEmp(null))
+      .finally(() => setLoading(false));
+  }, [selectedEmployeeId]);
+
+  const emp = apiEmp || seedEmp;
+  const branch = branches.find((b) => b.id === emp.branchId);
+  const myAssets = assets.filter((a) => a.assignedTo === emp.id);
+
+  async function handleEditSubmit(form) {
+    try {
+      const body = {
+        employee_name_en: form.name,
+        employee_name_ar: form.nameAr || "",
+        last_known_branch: form.branchId || null,
+        last_known_department: form.dept || null,
+      };
+      const updated = await apiPatch(ENDPOINTS.update_employee(emp.id), body);
+      setApiEmp(mapApiEmployee(updated));
+    } catch {
+      // Fall back to local context update
+      updateEmployee(emp.id, form);
+    }
     setShowEdit(false);
   }
 
-  function handleDeleteConfirm() {
+  async function handleDeleteConfirm() {
+    try {
+      await apiDelete(ENDPOINTS.delete_employee(emp.id));
+    } catch {
+      // Proceed with local delete even if API fails
+    }
     deleteEmployee(emp.id);
     setShowDeleteConfirm(false);
     goBack();
@@ -65,10 +120,10 @@ export default function EmployeeDetail() {
           </div>
 
           <div style={{ borderTop: "1px solid #eef0f3", marginTop: 18, paddingTop: 16, textAlign: "left", display: "flex", flexDirection: "column", gap: 10 }}>
-            <Row label="Tenure" value={emp.tenure} />
+            <Row label="Employee Code" value={emp.id} />
             <Row label="Department" value={emp.dept} />
-            <Row label="Location" value={emp.location} />
-            <Row label="Employee ID" value={`EMP-${emp.id}`} />
+            <Row label="Branch" value={branch?.name || emp.location} />
+            <Row label="Tenure" value={emp.tenure} />
           </div>
 
         </Card>
@@ -76,10 +131,12 @@ export default function EmployeeDetail() {
         <Card style={{ flex: 1 }}>
           <div style={{ fontWeight: 800, fontSize: 16, color: "#0f172a", marginBottom: 2 }}>Personal Information</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16, marginBottom: 24 }}>
-            <Field label="Full Name" value={emp.name} />
+            <Field label="Name (English)" value={emp.name} />
+            <Field label="Name (Arabic)" value={<span style={{ direction: "rtl", fontFamily: "serif" }}>{emp.nameAr || "—"}</span>} />
+            <Field label="Employee Code" value={emp.id} />
             <Field label="Email Address" value={emp.email} />
             <Field label="Department" value={emp.dept} />
-            <Field label="Office Location" value={emp.location} />
+            <Field label="Branch" value={branch?.name || emp.location} />
           </div>
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>

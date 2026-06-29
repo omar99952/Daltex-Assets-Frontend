@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Lock, Mail, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { useApp } from "../context/AppContext.jsx";
 import { NAVY, ORANGE } from "../theme.js";
-import daltexLogo from "../assets/daltex-logo.png";
+import daltexLogo from "../assets/daltex-logo-light-final.png";
 
 const DEMO_ACCOUNTS = [
   { email: "alex.mercer@daltexhq.com", password: "daltex2024", name: "Alex Mercer", role: "Systems Admin", avatar: "#475569" },

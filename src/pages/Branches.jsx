@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import { apiGet, apiPost, apiDelete, apiPatch } from "../api/client.js";
+import { ENDPOINTS } from "../api/endpoints.js";
 import { Filter, Download, Building2, Boxes, ClipboardCheck, CheckCircle2, AlertTriangle, ChevronRight, Check, MoreVertical, Settings, Trash2, AlertCircle } from "lucide-react";
 import { useApp } from "../context/AppContext.jsx";
 import BackButton from "../components/BackButton.jsx";
@@ -354,10 +356,10 @@ export default function Branches() {
           <Card>
             <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 14 }}>Asset Distribution</div>
             {[
-              { label: "LOGISTICS", pct: 42, color: ORANGE },
+              { label: "LOGISTICS", pct: 42, color: NAVY },
               { label: "OPERATIONS", pct: 31, color: NAVY },
-              { label: "IT", pct: 18, color: "#0f172a" },
-              { label: "HR & ADMIN", pct: 9, color: "#cbd5e1" },
+              { label: "IT", pct: 18, color: NAVY },
+              { label: "HR & ADMIN", pct: 9, color: NAVY },
             ].map((d) => (
               <div key={d.label} style={{ marginBottom: 12 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 5 }}>

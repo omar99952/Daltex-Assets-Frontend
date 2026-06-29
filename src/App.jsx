@@ -81,16 +81,18 @@ function Shell() {
 
   return (
     <div style={{ display: "flex", height: "100vh", background: "#f4f5f7", fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-      <Sidebar
-        items={NAV_ITEMS}
-        activePage={activeNav}
-        onNavigate={navigate}
-        onAddNewAsset={handleAddNewAsset}
-        brand="DALTEX HQ"
-        sub="IT Asset Management"
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
-      />
+      {page !== "home" && (
+        <Sidebar
+          items={NAV_ITEMS}
+          activePage={activeNav}
+          onNavigate={navigate}
+          onAddNewAsset={handleAddNewAsset}
+          brand="DALTEX HQ"
+          sub="IT Asset Management"
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
+        />
+      )}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <TopBar
           page={page}

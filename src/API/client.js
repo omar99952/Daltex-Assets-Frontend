@@ -19,3 +19,8 @@ export async function apiDelete(path) {
   const response = await api.delete(path);
   return response.data;
 }
+
+export async function apiPatch(path, body) {
+  const response = await api.patch(path, body);
+  return response.data;
+}
