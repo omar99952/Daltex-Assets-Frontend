@@ -1,12 +1,18 @@
-import { useState, useEffect, useRef } from "react";
-import { apiGet, apiPost, apiDelete, apiPatch } from "../api/client.js";
-import { ENDPOINTS } from "../api/endpoints.js";
 import { LayoutGrid, Boxes, Users, Building2, ClipboardCheck, ChevronRight } from "lucide-react";
 import { useApp } from "../context/AppContext.jsx";
 import { ORANGE } from "../theme.js";
 
 export default function HomePage() {
-  const { navigateTo, currentUser, stats, employees, branches } = useApp();
+  const { navigateTo, currentUser } = useApp();
+
+  // Temporary safe values until you connect API data here
+  const stats = {
+    total: 0,
+    assigned: 0,
+  };
+
+  const employees = [];
+  const branches = [];
 
   const tiles = [
     {
@@ -14,7 +20,7 @@ export default function HomePage() {
       label: "Dashboard",
       desc: "Overview of assets, activity, and branch health",
       icon: <LayoutGrid size={22} />,
-      stat: `${stats.total + 1263} assets tracked`,
+      stat: `${stats.total} assets tracked`,
     },
     {
       key: "inventory",
@@ -52,7 +58,9 @@ export default function HomePage() {
         <div style={{ fontWeight: 800, fontSize: 26, color: "#0f172a" }}>
           Welcome back{currentUser?.name ? `, ${currentUser.name.split(" ")[0]}` : ""}
         </div>
-        <div style={{ fontSize: 14, color: "#94a3b8", marginTop: 4 }}>Where would you like to go?</div>
+        <div style={{ fontSize: 14, color: "#94a3b8", marginTop: 4 }}>
+          Where would you like to go?
+        </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 18 }}>
@@ -77,12 +85,40 @@ export default function HomePage() {
               e.currentTarget.style.transform = "none";
             }}
           >
-            <div style={{ width: 46, height: 46, borderRadius: 11, background: "#fef3e2", color: ORANGE, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+            <div
+              style={{
+                width: 46,
+                height: 46,
+                borderRadius: 11,
+                background: "#fef3e2",
+                color: ORANGE,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 16,
+              }}
+            >
               {t.icon}
             </div>
-            <div style={{ fontWeight: 800, fontSize: 16, color: "#0f172a", marginBottom: 6 }}>{t.label}</div>
-            <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.5, marginBottom: 14 }}>{t.desc}</div>
-            <div style={{ fontSize: 12, color: "#94a3b8", fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>
+
+            <div style={{ fontWeight: 800, fontSize: 16, color: "#0f172a", marginBottom: 6 }}>
+              {t.label}
+            </div>
+
+            <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.5, marginBottom: 14 }}>
+              {t.desc}
+            </div>
+
+            <div
+              style={{
+                fontSize: 12,
+                color: "#94a3b8",
+                fontWeight: 700,
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+              }}
+            >
               {t.stat} <ChevronRight size={13} />
             </div>
           </div>
@@ -91,4 +127,3 @@ export default function HomePage() {
     </div>
   );
 }
-

@@ -2,7 +2,7 @@ import { Plus, Menu } from "lucide-react";
 import { NAVY, ORANGE } from "../theme.js";
 import daltexLogo from "../assets/daltex-logo-light-final.png";
 
-export default function Sidebar({ items, activePage, onNavigate, onAddNewAsset, brand, sub, collapsed, onToggleCollapse }) {
+export default function Sidebar({ items, activePage, onNavigate, onLogout, brand, sub, collapsed, onToggleCollapse }) {
   const width = collapsed ? 72 : 230;
   return (
     <div
@@ -81,8 +81,10 @@ export default function Sidebar({ items, activePage, onNavigate, onAddNewAsset, 
         })}
       </div>
       <button
-        onClick={() => (onAddNewAsset ? onAddNewAsset() : onNavigate("newAssignment"))}
-        title={collapsed ? "Add New Asset" : undefined}
+         onClick={() => {
+  onLogout && onLogout();
+}}
+        title={collapsed ? "Sign out" : undefined}
         style={{
           marginTop: 12,
           background: ORANGE,
@@ -100,7 +102,7 @@ export default function Sidebar({ items, activePage, onNavigate, onAddNewAsset, 
           whiteSpace: "nowrap",
         }}
       >
-        <Plus size={16} /> {!collapsed && "Add New Asset"}
+        {!collapsed && "Sign out"}
       </button>
     </div>
   );

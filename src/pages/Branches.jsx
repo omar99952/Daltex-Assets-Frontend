@@ -1,7 +1,23 @@
 import { useState, useEffect, useRef } from "react";
 import { apiGet, apiPost, apiDelete, apiPatch } from "../api/client.js";
 import { ENDPOINTS } from "../api/endpoints.js";
-import { Filter, Download, Building2, Boxes, ClipboardCheck, CheckCircle2, AlertTriangle, ChevronRight, Check, MoreVertical, Settings, Trash2, AlertCircle } from "lucide-react";
+import {
+  Filter,
+  Download,
+  Building2,
+  Boxes,
+  ClipboardCheck,
+  CheckCircle2,
+  AlertTriangle,
+  ChevronRight,
+  Check,
+  MoreVertical,
+  Settings,
+  Trash2,
+  AlertCircle,
+  Plus,
+  Pencil,
+} from "lucide-react";
 import { useApp } from "../context/AppContext.jsx";
 import BackButton from "../components/BackButton.jsx";
 import Card from "../components/Card.jsx";
@@ -9,29 +25,85 @@ import StatCard from "../components/StatCard.jsx";
 import CsvPreviewModal from "../components/CsvPreviewModal.jsx";
 import ConfirmDialog from "../components/ConfirmDialog.jsx";
 import Modal from "../components/Modal.jsx";
+import FormField, { inputStyle } from "../components/FormField.jsx";
 import { NAVY, ORANGE } from "../theme.js";
+
+function mapBranch(b) {
+  return {
+    id: String(b.branch_id || b.id),
+    name: b.name_en || b.name || "",
+    nameAr: b.name_ar || "",
+    region: b.location || "",
+    branchCode: b.branch_code || "",
+    departments: b.departments || [],
+    assets: b.assets || 0,
+    health: b.health || "good",
+  };
+}
 
 function BranchAdvancedSettingsPopover({ deleteEnabled, setDeleteEnabled, onClose }) {
   const ref = useRef(null);
+
   useEffect(() => {
     function handleOutside(e) {
       if (ref.current && !ref.current.contains(e.target)) onClose();
     }
+
     document.addEventListener("mousedown", handleOutside);
     return () => document.removeEventListener("mousedown", handleOutside);
   }, [onClose]);
 
   return (
-    <div ref={ref} style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, background: "#fff", border: "1px solid #eef0f3", borderRadius: 12, boxShadow: "0 12px 32px rgba(15,23,42,0.12)", width: 270, padding: 18, zIndex: 60 }}>
+    <div
+      ref={ref}
+      style={{
+        position: "absolute",
+        top: "calc(100% + 8px)",
+        right: 0,
+        background: "#fff",
+        border: "1px solid #eef0f3",
+        borderRadius: 12,
+        boxShadow: "0 12px 32px rgba(15,23,42,0.12)",
+        width: 270,
+        padding: 18,
+        zIndex: 60,
+      }}
+    >
       <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 16 }}>
         <Settings size={14} color="#475569" />
         <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>Advanced Settings</div>
       </div>
-      <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", padding: "10px 12px", background: "#f8fafc", borderRadius: 8, border: "1px solid #eef0f3" }}>
-        <input type="checkbox" checked={deleteEnabled} onChange={(e) => setDeleteEnabled(e.target.checked)} style={{ marginTop: 2, accentColor: "#dc2626", cursor: "pointer", flexShrink: 0 }} />
+
+      <label
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 10,
+          cursor: "pointer",
+          padding: "10px 12px",
+          background: "#f8fafc",
+          borderRadius: 8,
+          border: "1px solid #eef0f3",
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={deleteEnabled}
+          onChange={(e) => setDeleteEnabled(e.target.checked)}
+          style={{
+            marginTop: 2,
+            accentColor: "#dc2626",
+            cursor: "pointer",
+            flexShrink: 0,
+          }}
+        />
         <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>Allow branch deletion</div>
-          <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 2 }}>{deleteEnabled ? "Deletion is currently enabled." : "Check to allow deleting branches."}</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>
+            Allow branch deletion
+          </div>
+          <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 2 }}>
+            {deleteEnabled ? "Deletion is currently enabled." : "Check to allow deleting branches."}
+          </div>
         </div>
       </label>
     </div>
@@ -40,10 +112,12 @@ function BranchAdvancedSettingsPopover({ deleteEnabled, setDeleteEnabled, onClos
 
 function FilterPopover({ healthFilter, setHealthFilter, deptFilter, setDeptFilter, allDepts, onClose }) {
   const ref = useRef(null);
+
   useEffect(() => {
     function onClick(e) {
       if (ref.current && !ref.current.contains(e.target)) onClose();
     }
+
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
   }, [onClose]);
@@ -64,7 +138,10 @@ function FilterPopover({ healthFilter, setHealthFilter, deptFilter, setDeptFilte
         zIndex: 60,
       }}
     >
-      <div style={{ fontSize: 11.5, fontWeight: 700, color: "#94a3b8", letterSpacing: 0.3, marginBottom: 10 }}>HEALTH STATUS</div>
+      <div style={{ fontSize: 11.5, fontWeight: 700, color: "#94a3b8", letterSpacing: 0.3, marginBottom: 10 }}>
+        HEALTH STATUS
+      </div>
+
       {[
         { key: null, label: "All" },
         { key: "good", label: "Healthy" },
@@ -94,58 +171,303 @@ function FilterPopover({ healthFilter, setHealthFilter, deptFilter, setDeptFilte
         </button>
       ))}
 
-      <div style={{ fontSize: 11.5, fontWeight: 700, color: "#94a3b8", letterSpacing: 0.3, margin: "14px 0 10px" }}>DEPARTMENT</div>
-      <button
-        onClick={() => setDeptFilter(null)}
-        style={{
-          width: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          border: "none",
-          background: deptFilter === null ? "#fef3e2" : "none",
-          borderRadius: 7,
-          padding: "8px 10px",
-          fontSize: 13,
-          fontWeight: 600,
-          color: deptFilter === null ? ORANGE : "#475569",
-          cursor: "pointer",
-          marginBottom: 2,
-        }}
-      >
-        All
-        {deptFilter === null && <Check size={14} />}
-      </button>
-      {allDepts.map((d) => (
-        <button
-          key={d}
-          onClick={() => setDeptFilter(d)}
-          style={{
-            width: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            border: "none",
-            background: deptFilter === d ? "#fef3e2" : "none",
-            borderRadius: 7,
-            padding: "8px 10px",
-            fontSize: 13,
-            fontWeight: 600,
-            color: deptFilter === d ? ORANGE : "#475569",
-            cursor: "pointer",
-            marginBottom: 2,
-          }}
-        >
-          {d}
-          {deptFilter === d && <Check size={14} />}
-        </button>
-      ))}
+      {allDepts.length > 0 && (
+        <>
+          <div
+            style={{
+              fontSize: 11.5,
+              fontWeight: 700,
+              color: "#94a3b8",
+              letterSpacing: 0.3,
+              margin: "14px 0 10px",
+            }}
+          >
+            DEPARTMENT
+          </div>
+
+          <button
+            onClick={() => setDeptFilter(null)}
+            style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              border: "none",
+              background: deptFilter === null ? "#fef3e2" : "none",
+              borderRadius: 7,
+              padding: "8px 10px",
+              fontSize: 13,
+              fontWeight: 600,
+              color: deptFilter === null ? ORANGE : "#475569",
+              cursor: "pointer",
+              marginBottom: 2,
+            }}
+          >
+            All {deptFilter === null && <Check size={14} />}
+          </button>
+
+          {allDepts.map((d) => (
+            <button
+              key={d}
+              onClick={() => setDeptFilter(d)}
+              style={{
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                border: "none",
+                background: deptFilter === d ? "#fef3e2" : "none",
+                borderRadius: 7,
+                padding: "8px 10px",
+                fontSize: 13,
+                fontWeight: 600,
+                color: deptFilter === d ? ORANGE : "#475569",
+                cursor: "pointer",
+                marginBottom: 2,
+              }}
+            >
+              {d} {deptFilter === d && <Check size={14} />}
+            </button>
+          ))}
+        </>
+      )}
     </div>
   );
 }
 
+function AddBranchModal({ onClose, onSubmit }) {
+  const [form, setForm] = useState({
+    nameEn: "",
+    nameAr: "",
+    location: "",
+    branchCode: "",
+  });
+  const [error, setError] = useState("");
+
+  function handleSubmit() {
+    if (!form.nameEn.trim()) {
+      setError("Branch name (English) is required.");
+      return;
+    }
+
+    onSubmit(form);
+  }
+
+  return (
+    <Modal
+      title="Add New Branch"
+      onClose={onClose}
+      footer={
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+          <button
+            onClick={onClose}
+            style={{
+              border: "1px solid #eef0f3",
+              background: "#fff",
+              color: "#475569",
+              fontWeight: 700,
+              fontSize: 13,
+              padding: "10px 18px",
+              borderRadius: 8,
+              cursor: "pointer",
+            }}
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={handleSubmit}
+            style={{
+              border: "none",
+              background: NAVY,
+              color: "#fff",
+              fontWeight: 700,
+              fontSize: 13,
+              padding: "10px 20px",
+              borderRadius: 8,
+              cursor: "pointer",
+            }}
+          >
+            Add Branch
+          </button>
+        </div>
+      }
+    >
+      {error && (
+        <div
+          style={{
+            background: "#fee2e2",
+            color: "#dc2626",
+            fontSize: 12.5,
+            padding: "10px 12px",
+            borderRadius: 8,
+            marginBottom: 16,
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <FormField label="Name (English)">
+          <input
+            value={form.nameEn}
+            onChange={(e) => setForm((f) => ({ ...f, nameEn: e.target.value }))}
+            placeholder="e.g. Cairo Branch"
+            style={inputStyle}
+          />
+        </FormField>
+
+        <FormField label="Name (Arabic)">
+          <input
+            value={form.nameAr}
+            onChange={(e) => setForm((f) => ({ ...f, nameAr: e.target.value }))}
+            placeholder="مثال: فرع القاهرة"
+            style={{ ...inputStyle, direction: "rtl" }}
+          />
+        </FormField>
+      </div>
+
+      <FormField label="Location">
+        <input
+          value={form.location}
+          onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
+          placeholder="e.g. Cairo, Egypt"
+          style={inputStyle}
+        />
+      </FormField>
+
+      <FormField label="Branch Code">
+        <input
+          value={form.branchCode}
+          onChange={(e) => setForm((f) => ({ ...f, branchCode: e.target.value }))}
+          placeholder="e.g. CAI-01"
+          style={inputStyle}
+        />
+      </FormField>
+    </Modal>
+  );
+}
+
+function EditBranchModal({ branch, onClose, onSubmit }) {
+  const [form, setForm] = useState({
+    nameEn: branch.name || "",
+    nameAr: branch.nameAr || "",
+    location: branch.region || "",
+    branchCode: branch.branchCode || "",
+  });
+  const [error, setError] = useState("");
+
+  function handleSubmit() {
+    if (!form.nameEn.trim()) {
+      setError("Branch name (English) is required.");
+      return;
+    }
+
+    onSubmit(form);
+  }
+
+  return (
+    <Modal
+      title="Edit Branch"
+      onClose={onClose}
+      footer={
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+          <button
+            onClick={onClose}
+            style={{
+              border: "1px solid #eef0f3",
+              background: "#fff",
+              color: "#475569",
+              fontWeight: 700,
+              fontSize: 13,
+              padding: "10px 18px",
+              borderRadius: 8,
+              cursor: "pointer",
+            }}
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={handleSubmit}
+            style={{
+              border: "none",
+              background: NAVY,
+              color: "#fff",
+              fontWeight: 700,
+              fontSize: 13,
+              padding: "10px 20px",
+              borderRadius: 8,
+              cursor: "pointer",
+            }}
+          >
+            Save Changes
+          </button>
+        </div>
+      }
+    >
+      {error && (
+        <div
+          style={{
+            background: "#fee2e2",
+            color: "#dc2626",
+            fontSize: 12.5,
+            padding: "10px 12px",
+            borderRadius: 8,
+            marginBottom: 16,
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <FormField label="Name (English)">
+          <input
+            value={form.nameEn}
+            onChange={(e) => setForm((f) => ({ ...f, nameEn: e.target.value }))}
+            style={inputStyle}
+          />
+        </FormField>
+
+        <FormField label="Name (Arabic)">
+          <input
+            value={form.nameAr}
+            onChange={(e) => setForm((f) => ({ ...f, nameAr: e.target.value }))}
+            style={{ ...inputStyle, direction: "rtl" }}
+          />
+        </FormField>
+      </div>
+
+      <FormField label="Location">
+        <input
+          value={form.location}
+          onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
+          style={inputStyle}
+        />
+      </FormField>
+
+      <FormField label="Branch Code">
+        <input
+          value={form.branchCode}
+          onChange={(e) => setForm((f) => ({ ...f, branchCode: e.target.value }))}
+          style={inputStyle}
+        />
+      </FormField>
+    </Modal>
+  );
+}
+
 export default function Branches() {
-  const { branches, navigateTo, goBack, setSelectedBranchId, deleteBranch, deleteBranchEnabled, setDeleteBranchEnabled } = useApp();
+  const {
+    navigateTo,
+    goBack,
+    setSelectedBranchId,
+    deleteBranchEnabled,
+    setDeleteBranchEnabled,
+  } = useApp();
+
   const [healthFilter, setHealthFilter] = useState(null);
   const [deptFilter, setDeptFilter] = useState(null);
   const [showFilter, setShowFilter] = useState(false);
@@ -153,29 +475,114 @@ export default function Branches() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const [showDeleteError, setShowDeleteError] = useState(false);
+  const [showAddBranch, setShowAddBranch] = useState(false);
+  const [editingBranch, setEditingBranch] = useState(null);
+
+  const [apiBranches, setApiBranches] = useState([]);
+  const [apiLoading, setApiLoading] = useState(true);
+  const [apiError, setApiError] = useState(null);
+
+  async function fetchBranches() {
+    try {
+      setApiLoading(true);
+
+      const data = await apiGet(ENDPOINTS.get_all_branches);
+      const branchArray = Array.isArray(data) ? data : data.results || [];
+
+      setApiBranches(branchArray.map(mapBranch));
+      setApiError(null);
+    } catch {
+      setApiError("Could not reach the server.");
+    } finally {
+      setApiLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchBranches();
+  }, []);
+
+  const branches = apiBranches || [];
 
   const allDepts = Array.from(new Set(branches.flatMap((b) => b.departments))).sort();
 
   const filteredBranches = branches.filter(
-    (b) => (!healthFilter || b.health === healthFilter) && (!deptFilter || b.departments.includes(deptFilter))
+    (b) =>
+      (!healthFilter || b.health === healthFilter) &&
+      (!deptFilter || b.departments.includes(deptFilter))
   );
 
   const totalAssets = filteredBranches.reduce((s, b) => s + b.assets, 0);
   const totalDepts = new Set(filteredBranches.flatMap((b) => b.departments)).size;
-  const activePct = filteredBranches.length ? Math.round((filteredBranches.filter((b) => b.health === "good").length / filteredBranches.length) * 100) : 0;
+
+  const activePct = filteredBranches.length
+    ? Math.round(
+        (filteredBranches.filter((b) => b.health === "good").length / filteredBranches.length) * 100
+      )
+    : 0;
 
   function openBranch(id) {
     setSelectedBranchId(id);
     navigateTo("branchDetail");
   }
 
-  const csvHeaders = ["BRANCH ID", "BRANCH NAME", "REGION", "DEPARTMENTS", "ASSETS", "HEALTH"];
+  async function handleAddBranch(form) {
+    try {
+      const body = {
+        name_en: form.nameEn,
+        name_ar: form.nameAr || "",
+        location: form.location || "",
+        branch_code: form.branchCode || "",
+      };
+
+      await apiPost(ENDPOINTS.post_new_branch, body);
+      await fetchBranches();
+      setShowAddBranch(false);
+    } catch {
+      setApiError("Failed to create branch.");
+      setShowAddBranch(false);
+    }
+  }
+
+  async function handleEditBranch(form) {
+    if (!editingBranch) return;
+
+    try {
+      const body = {
+        name_en: form.nameEn,
+        name_ar: form.nameAr || "",
+        location: form.location || "",
+        branch_code: form.branchCode || "",
+      };
+
+      await apiPatch(ENDPOINTS.update_branch(editingBranch.id), body);
+
+      await fetchBranches();
+
+      setEditingBranch(null);
+    } catch {
+      setApiError("Failed to update branch.");
+    }
+  }
+
+  async function handleDeleteBranch(id) {
+    try {
+      await apiDelete(ENDPOINTS.delete_branch(id));
+      await fetchBranches();
+    } catch {
+      setApiError("Failed to delete branch.");
+    }
+
+    setPendingDeleteId(null);
+  }
+
+  const csvHeaders = ["BRANCH ID", "BRANCH NAME", "LOCATION", "BRANCH CODE", "HEALTH"];
+
   const csvRows = filteredBranches.map((b) => ({
     "BRANCH ID": b.id,
     "BRANCH NAME": b.name,
-    REGION: b.region,
-    DEPARTMENTS: b.departments.join("; "),
-    ASSETS: b.assets,
+    LOCATION: b.region,
+    "BRANCH CODE": b.branchCode || "",
     HEALTH: b.health === "good" ? "Healthy" : "Needs Attention",
   }));
 
@@ -184,13 +591,40 @@ export default function Branches() {
   return (
     <div style={{ padding: 28 }}>
       <BackButton onClick={() => goBack()} />
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+
+      {apiError && (
+        <div
+          style={{
+            background: "#fef9f0",
+            border: "1px solid #fde68a",
+            borderRadius: 8,
+            padding: "10px 14px",
+            fontSize: 12.5,
+            color: "#92400e",
+            marginBottom: 14,
+          }}
+        >
+          {apiError}
+        </div>
+      )}
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          marginBottom: 20,
+        }}
+      >
         <div>
-          <div style={{ fontWeight: 800, fontSize: 22, color: "#0f172a" }}>Branches & Departments</div>
+          <div style={{ fontWeight: 800, fontSize: 22, color: "#0f172a" }}>
+            Branches & Departments
+          </div>
           <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 2 }}>
-            Operational overview of all {branches.length} regional hubs and department allocation.
+            {apiLoading ? "Loading…" : `Operational overview of all ${branches.length} regional hubs.`}
           </div>
         </div>
+
         <div style={{ display: "flex", gap: 10 }}>
           <div style={{ position: "relative" }}>
             <button
@@ -211,6 +645,7 @@ export default function Branches() {
             >
               <Filter size={14} /> Filter {activeFilterCount > 0 && `(${activeFilterCount})`}
             </button>
+
             {showFilter && (
               <FilterPopover
                 healthFilter={healthFilter}
@@ -222,22 +657,72 @@ export default function Branches() {
               />
             )}
           </div>
+
           <button
             onClick={() => setShowCsvPreview(true)}
-            style={{ display: "flex", alignItems: "center", gap: 7, border: "none", borderRadius: 8, padding: "9px 16px", fontWeight: 700, fontSize: 13, color: "#fff", background: NAVY, cursor: "pointer" }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+              border: "1px solid #eef0f3",
+              borderRadius: 8,
+              padding: "9px 16px",
+              fontWeight: 700,
+              fontSize: 13,
+              color: "#475569",
+              background: "#fff",
+              cursor: "pointer",
+            }}
           >
-            <Download size={14} /> Export Data
+            <Download size={14} /> Export
           </button>
+
+          <button
+            onClick={() => setShowAddBranch(true)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+              border: "none",
+              borderRadius: 8,
+              padding: "9px 16px",
+              fontWeight: 700,
+              fontSize: 13,
+              color: "#fff",
+              background: NAVY,
+              cursor: "pointer",
+            }}
+          >
+            <Plus size={14} /> Add Branch
+          </button>
+
           <div style={{ position: "relative" }}>
             <button
               onClick={() => setShowAdvanced((s) => !s)}
               title="Advanced Settings"
-              style={{ border: `1px solid ${deleteBranchEnabled ? "#fecaca" : "#eef0f3"}`, borderRadius: 8, padding: 0, height: 38, width: 38, display: "flex", alignItems: "center", justifyContent: "center", background: showAdvanced ? "#f1f5f9" : deleteBranchEnabled ? "#fff5f5" : "#fff", cursor: "pointer", color: deleteBranchEnabled ? "#dc2626" : "#475569" }}
+              style={{
+                border: `1px solid ${deleteBranchEnabled ? "#fecaca" : "#eef0f3"}`,
+                borderRadius: 8,
+                padding: 0,
+                height: 38,
+                width: 38,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: showAdvanced ? "#f1f5f9" : deleteBranchEnabled ? "#fff5f5" : "#fff",
+                cursor: "pointer",
+                color: deleteBranchEnabled ? "#dc2626" : "#475569",
+              }}
             >
               <MoreVertical size={14} />
             </button>
+
             {showAdvanced && (
-              <BranchAdvancedSettingsPopover deleteEnabled={deleteBranchEnabled} setDeleteEnabled={setDeleteBranchEnabled} onClose={() => setShowAdvanced(false)} />
+              <BranchAdvancedSettingsPopover
+                deleteEnabled={deleteBranchEnabled}
+                setDeleteEnabled={setDeleteBranchEnabled}
+                onClose={() => setShowAdvanced(false)}
+              />
             )}
           </div>
         </div>
@@ -252,101 +737,171 @@ export default function Branches() {
 
       <div style={{ display: "flex", gap: 20 }}>
         <Card style={{ flex: 2, padding: 0 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 20px" }}>
-            <div style={{ fontWeight: 800, fontSize: 16, color: "#0f172a" }}>Branch Inventory Index</div>
-            <span style={{ fontSize: 12, color: "#94a3b8", background: "#f1f5f9", padding: "4px 10px", borderRadius: 999 }}>
-              Displaying {filteredBranches.length} region{filteredBranches.length === 1 ? "" : "s"}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "18px 20px",
+            }}
+          >
+            <div style={{ fontWeight: 800, fontSize: 16, color: "#0f172a" }}>
+              Branch Inventory Index
+            </div>
+
+            <span
+              style={{
+                fontSize: 12,
+                color: "#94a3b8",
+                background: "#f1f5f9",
+                padding: "4px 10px",
+                borderRadius: 999,
+              }}
+            >
+              {apiLoading
+                ? "Loading…"
+                : `Displaying ${filteredBranches.length} region${filteredBranches.length === 1 ? "" : "s"}`}
             </span>
           </div>
+
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ textAlign: "left" }}>
-                {["BRANCH NAME", "DEPARTMENTS", "ASSETS", "HEALTH", ""].map((h) => (
-                  <th key={h} style={{ padding: "8px 20px", fontSize: 11, color: "#94a3b8", fontWeight: 700, borderBottom: "1px solid #eef0f3" }}>
+                {["BRANCH NAME", "LOCATION", "HEALTH", ""].map((h) => (
+                  <th
+                    key={h}
+                    style={{
+                      padding: "8px 20px",
+                      fontSize: 11,
+                      color: "#94a3b8",
+                      fontWeight: 700,
+                      borderBottom: "1px solid #eef0f3",
+                    }}
+                  >
                     {h}
                   </th>
                 ))}
               </tr>
             </thead>
+
             <tbody>
-              {filteredBranches.map((b) => (
-                <tr
-                  key={b.id}
-                  onClick={() => openBranch(b.id)}
-                  style={{ borderBottom: "1px solid #f3f4f6", cursor: "pointer" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#fafbfc")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                >
-                  <td style={{ padding: "14px 20px", display: "flex", alignItems: "center", gap: 10 }}>
-                    <div
-                      style={{
-                        width: 30,
-                        height: 30,
-                        borderRadius: 7,
-                        background: NAVY,
-                        color: "#fff",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: 11,
-                        fontWeight: 700,
-                      }}
-                    >
-                      {b.id}
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{b.name}</div>
-                      <div style={{ fontSize: 11.5, color: "#94a3b8" }}>{b.region}</div>
-                    </div>
-                  </td>
-                  <td style={{ padding: "14px 20px" }}>
-                    <div style={{ display: "flex", gap: 5 }}>
-                      {b.departments.slice(0, 2).map((d) => (
-                        <span key={d} style={{ background: "#fef3e2", color: ORANGE, fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 999 }}>
-                          {d}
-                        </span>
-                      ))}
-                      {b.departments.length > 2 && (
-                        <span style={{ background: "#f1f5f9", color: "#94a3b8", fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 999 }}>
-                          +{b.departments.length - 2}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td style={{ padding: "14px 20px", fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{b.assets.toLocaleString()}</td>
-                  <td style={{ padding: "14px 20px" }}>
-                    <span
-                      style={{
-                        width: 9,
-                        height: 9,
-                        borderRadius: 99,
-                        display: "inline-block",
-                        background: b.health === "good" ? "#16a34a" : "#f59e0b",
-                      }}
-                    />
-                  </td>
-                  <td style={{ padding: "14px 20px", display: "flex", alignItems: "center", gap: 10 }}>
-                    <ChevronRight size={15} color="#cbd5e1" />
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (!deleteBranchEnabled) { setShowDeleteError(true); return; }
-                        setPendingDeleteId(b.id);
-                      }}
-                      title="Delete branch"
-                      style={{ border: "none", background: "none", cursor: "pointer", color: "#fca5a5" }}
-                    >
-                      <Trash2 size={15} />
-                    </button>
+              {apiLoading ? (
+                <tr>
+                  <td colSpan={4} style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+                    Loading branches…
                   </td>
                 </tr>
-              ))}
-              {filteredBranches.length === 0 && (
+              ) : filteredBranches.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: 30, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+                  <td colSpan={4} style={{ padding: 30, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
                     No branches match the selected filters.
                   </td>
                 </tr>
+              ) : (
+                filteredBranches.map((b) => (
+                  <tr
+                    key={b.id}
+                    onClick={() => openBranch(b.id)}
+                    style={{ borderBottom: "1px solid #f3f4f6", cursor: "pointer" }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "#fafbfc")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <td style={{ padding: "14px 20px", display: "flex", alignItems: "center", gap: 10 }}>
+                      <div
+                        style={{
+                          width: 30,
+                          height: 30,
+                          borderRadius: 7,
+                          background: NAVY,
+                          color: "#fff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {b.branchCode ? b.branchCode.slice(0, 3).toUpperCase() : b.name.slice(0, 2).toUpperCase()}
+                      </div>
+
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
+                          {b.name}
+                        </div>
+                        {b.nameAr && (
+                          <div style={{ fontSize: 11, color: "#94a3b8", direction: "rtl" }}>
+                            {b.nameAr}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+
+                    <td style={{ padding: "14px 20px", fontSize: 13, color: "#475569" }}>
+                      {b.region || "—"}
+                    </td>
+
+                    <td style={{ padding: "14px 20px" }}>
+                      <span
+                        style={{
+                          width: 9,
+                          height: 9,
+                          borderRadius: 99,
+                          display: "inline-block",
+                          background: b.health === "good" ? "#16a34a" : "#f59e0b",
+                        }}
+                      />
+                    </td>
+
+                    <td style={{ padding: "14px 20px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <ChevronRight size={15} color="#cbd5e1" />
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingBranch(b);
+                          }}
+                          title="Edit branch"
+                          style={{
+                            border: "none",
+                            background: "none",
+                            cursor: "pointer",
+                            color: "#94a3b8",
+                            display: "flex",
+                            padding: 2,
+                          }}
+                        >
+                          <Pencil size={14} />
+                        </button>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+
+                            if (!deleteBranchEnabled) {
+                              setShowDeleteError(true);
+                              return;
+                            }
+
+                            setPendingDeleteId(b.id);
+                          }}
+                          title="Delete branch"
+                          style={{
+                            border: "none",
+                            background: "none",
+                            cursor: "pointer",
+                            color: "#fca5a5",
+                            display: "flex",
+                            padding: 2,
+                          }}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
@@ -354,7 +909,10 @@ export default function Branches() {
 
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16 }}>
           <Card>
-            <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 14 }}>Asset Distribution</div>
+            <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 14 }}>
+              Asset Distribution
+            </div>
+
             {[
               { label: "LOGISTICS", pct: 42, color: NAVY },
               { label: "OPERATIONS", pct: 31, color: NAVY },
@@ -366,6 +924,7 @@ export default function Branches() {
                   <span style={{ color: "#64748b", fontWeight: 700 }}>{d.label}</span>
                   <span style={{ color: "#94a3b8" }}>{d.pct}%</span>
                 </div>
+
                 <div style={{ height: 6, borderRadius: 99, background: "#eef0f3", overflow: "hidden" }}>
                   <div style={{ width: `${d.pct}%`, height: "100%", background: d.color }} />
                 </div>
@@ -374,31 +933,62 @@ export default function Branches() {
           </Card>
 
           <Card>
-            <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 14 }}>Recent Maintenance Alerts</div>
+            <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 14 }}>
+              Recent Maintenance Alerts
+            </div>
+
             <button
               onClick={() => {
                 const wn = branches.find((b) => b.name.includes("Wadi"));
                 if (wn) openBranch(wn.id);
               }}
-              style={{ display: "flex", gap: 10, marginBottom: 12, border: "none", background: "none", cursor: "pointer", textAlign: "left", width: "100%", padding: 0 }}
+              style={{
+                display: "flex",
+                gap: 10,
+                marginBottom: 12,
+                border: "none",
+                background: "none",
+                cursor: "pointer",
+                textAlign: "left",
+                width: "100%",
+                padding: 0,
+              }}
             >
               <AlertTriangle size={16} color="#f59e0b" style={{ flexShrink: 0, marginTop: 2 }} />
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>Wadi El Natrun Hub</div>
-                <div style={{ fontSize: 12, color: "#94a3b8" }}>5 unassigned IT assets detected.</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
+                  Wadi El Natrun Hub
+                </div>
+                <div style={{ fontSize: 12, color: "#94a3b8" }}>
+                  5 unassigned IT assets detected.
+                </div>
               </div>
             </button>
+
             <button
               onClick={() => {
                 const ap = branches.find((b) => b.name.includes("Alexandria"));
                 if (ap) openBranch(ap.id);
               }}
-              style={{ display: "flex", gap: 10, border: "none", background: "none", cursor: "pointer", textAlign: "left", width: "100%", padding: 0 }}
+              style={{
+                display: "flex",
+                gap: 10,
+                border: "none",
+                background: "none",
+                cursor: "pointer",
+                textAlign: "left",
+                width: "100%",
+                padding: 0,
+              }}
             >
               <CheckCircle2 size={16} color="#16a34a" style={{ flexShrink: 0, marginTop: 2 }} />
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>Alexandria Port</div>
-                <div style={{ fontSize: 12, color: "#94a3b8" }}>New shipment of 12 mobile units received.</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
+                  Alexandria Port
+                </div>
+                <div style={{ fontSize: 12, color: "#94a3b8" }}>
+                  New shipment of 12 mobile units received.
+                </div>
               </div>
             </button>
           </Card>
@@ -406,32 +996,83 @@ export default function Branches() {
       </div>
 
       {showCsvPreview && (
-        <CsvPreviewModal onClose={() => setShowCsvPreview(false)} rows={csvRows} headers={csvHeaders} filename="branches_export.csv" />
+        <CsvPreviewModal
+          onClose={() => setShowCsvPreview(false)}
+          rows={csvRows}
+          headers={csvHeaders}
+          filename="branches_export.csv"
+        />
       )}
+
+      {showAddBranch && (
+        <AddBranchModal
+          onClose={() => setShowAddBranch(false)}
+          onSubmit={handleAddBranch}
+        />
+      )}
+
+      {editingBranch && (
+        <EditBranchModal
+          branch={editingBranch}
+          onClose={() => setEditingBranch(null)}
+          onSubmit={handleEditBranch}
+        />
+      )}
+
       {pendingDeleteId && (
         <ConfirmDialog
           title="Delete Branch"
-          message={`Are you sure you want to permanently delete this branch? This cannot be undone.`}
+          message="Are you sure you want to permanently delete this branch? This cannot be undone."
           confirmLabel="Delete Branch"
-          onConfirm={() => { deleteBranch(pendingDeleteId); setPendingDeleteId(null); }}
+          onConfirm={() => handleDeleteBranch(pendingDeleteId)}
           onCancel={() => setPendingDeleteId(null)}
         />
       )}
+
       {showDeleteError && (
         <Modal title="Deletion Disabled" onClose={() => setShowDeleteError(false)} width={400}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 20 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 8, background: "#fee2e2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 8,
+                background: "#fee2e2",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
               <AlertCircle size={18} color="#dc2626" />
             </div>
+
             <div>
-              <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>Branch deletion is not enabled</div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>
+                Branch deletion is not enabled
+              </div>
               <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.55 }}>
                 Open <strong>Advanced Settings</strong> (⋮ button in the toolbar) and enable branch deletion to proceed.
               </div>
             </div>
           </div>
+
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <button onClick={() => setShowDeleteError(false)} style={{ border: "none", background: "#0f172a", color: "#fff", fontWeight: 700, fontSize: 13, padding: "10px 22px", borderRadius: 8, cursor: "pointer" }}>Got it</button>
+            <button
+              onClick={() => setShowDeleteError(false)}
+              style={{
+                border: "none",
+                background: "#0f172a",
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: 13,
+                padding: "10px 22px",
+                borderRadius: 8,
+                cursor: "pointer",
+              }}
+            >
+              Got it
+            </button>
           </div>
         </Modal>
       )}

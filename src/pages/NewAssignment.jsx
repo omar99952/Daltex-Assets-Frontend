@@ -1,59 +1,154 @@
-import React, { useState,useEffect } from "react";
-import { apiGet, apiPost, apiDelete, apiPatch } from "../api/client.js";
+import React, { useState, useEffect } from "react";
+import { apiGet, apiPost } from "../api/client.js";
 import { ENDPOINTS } from "../api/endpoints.js";
-import { ArrowLeft, Users, Building2, Search, Check, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  ArrowLeft,
+  Users,
+  Building2,
+  Search,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { useApp } from "../context/AppContext.jsx";
 import Card from "../components/Card.jsx";
 import CategoryIcon from "../components/CategoryIcon.jsx";
 import { NAVY, ORANGE } from "../theme.js";
 
-export default function NewAssignment() {
-  const { employees, assets, branches, assignAsset, returnAsset, navigateTo, goBack, lastContract } = useApp();
+function getArray(data) {
+  return Array.isArray(data) ? data : data?.results || [];
+}
 
-  // If we arrived here via "Edit Details" on a contract, pre-fill everything from
-  // the existing assignment instead of starting from a blank wizard.
-  const editingFromContract = lastContract;
-  const initialRecipientType = editingFromContract?.branchRecipient ? "branch" : "employee";
-  const initialEmp = editingFromContract?.employee || null;
-  const initialBranch = editingFromContract?.branchRecipient?.branch || null;
-  const initialDept = editingFromContract?.branchRecipient?.departmentName || null;
-  const initialAssetId = editingFromContract?.asset?.id || null;
+function mapEmployee(e) {
+  return {
+    id: String(e.employee_code),
+    name: e.employee_name_en || "",
+    role: e.role || e.job_title || "",
+    dept:
+      typeof e.last_known_department === "object"
+        ? e.last_known_department?.name || ""
+        : String(e.last_known_department || ""),
+    location:
+      typeof e.last_known_branch === "object"
+        ? e.last_known_branch?.name_en || e.last_known_branch?.name || ""
+        : String(e.last_known_branch || ""),
+    avatarColor: "#0f172a",
+  };
+}
 
-  const [step, setStep] = useState(editingFromContract ? 3 : 1);
-  const [recipientType, setRecipientType] = useState(initialRecipientType);
-  const [query, setQuery] = useState("");
-  const [selectedEmp, setSelectedEmp] = useState(initialEmp);
-  const [selectedBranch, setSelectedBranch] = useState(initialBranch);
-  const [selectedDept, setSelectedDept] = useState(initialDept);
-  const [selectedAssetId, setSelectedAssetId] = useState(initialAssetId);
+function mapBranch(b) {
+  return {
+    id: String(b.branch_id || b.id),
+    name: b.name_en || b.name || "",
+    region: b.location || "",
+    departments: b.departments || [],
+  };
+}
 
-  const candidates = employees.filter((e) => query === "" || e.name.toLowerCase().includes(query.toLowerCase()) || e.id.includes(query));
-  const branchCandidates = branches.filter(
-    (b) => query === "" || b.name.toLowerCase().includes(query.toLowerCase()) || b.id.toLowerCase().includes(query.toLowerCase())
+function mapAsset(a) {
+  const isComputer = a.pc_type !== undefined;
+  const isPrinter = a.printer_type !== undefined;
+
+  return {
+    id: String(a.id || a.asset_id || a.serial_number),
+    brand: a.brand || "",
+    model: a.model_or_pn || a.model || "",
+    serial: a.serial_number || a.serial || "",
+    status: a.status || a.asset_status || "",
+    category: isComputer
+      ? "Laptops & PCs"
+      : isPrinter
+      ? "Printers"
+      : a.category || a.asset_type || "Hardware",
+    condition: a.condition || "Good",
+    branch:
+      typeof a.branch === "object"
+        ? a.branch?.name_en || a.branch?.name || ""
+        : a.branch || "",
+  };
+}
+
+function isAvailableAsset(a) {
+  const status = String(a.status || "").toLowerCase();
+
+  return (
+    status === "in_stock" ||
+    status === "in stock" ||
+    status === "available" ||
+    status === "unassigned" ||
+    status === "not assigned" ||
+    status === ""
   );
-  // When editing, the asset that's already on this contract should stay selectable
-  // even though its status is "Assigned" rather than "In Stock".
-  const availableAssets = assets.filter((a) => a.status === "In Stock" || a.id === initialAssetId);
+}
 
-  const hasValidRecipient = recipientType === "employee" ? !!selectedEmp : !!selectedBranch;
+export default function NewAssignment() {
+  const { navigateTo, goBack, setLastContract, currentUser } = useApp();
 
-  function goNext() {
-    if (step === 3) {
-      // If editing and the asset was swapped for a different one, free up the
-      // original asset first so it doesn't stay stuck as "Assigned" with no owner.
-      if (editingFromContract && initialAssetId && initialAssetId !== selectedAssetId) {
-        returnAsset(initialAssetId);
+  const [employees, setEmployees] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [availableAssets, setAvailableAssets] = useState([]);
+  const [dataLoading, setDataLoading] = useState(true);
+
+  const [step, setStep] = useState(1);
+  const [recipientType, setRecipientType] = useState("employee");
+  const [query, setQuery] = useState("");
+  const [selectedEmp, setSelectedEmp] = useState(null);
+  const [selectedBranch, setSelectedBranch] = useState(null);
+  const [selectedDept, setSelectedDept] = useState(null);
+  const [selectedAssetId, setSelectedAssetId] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
+  useEffect(() => {
+    async function fetchAll() {
+      try {
+        const [empData, branchData, hardwareData, compData, printData] =
+          await Promise.all([
+            apiGet(ENDPOINTS.get_all_employees).catch(() => []),
+            apiGet(ENDPOINTS.get_all_branches).catch(() => []),
+            apiGet(ENDPOINTS.get_all_hardware_assets).catch(() => []),
+            apiGet(ENDPOINTS.get_all_computers).catch(() => []),
+            apiGet(ENDPOINTS.get_all_printers).catch(() => []),
+          ]);
+
+        setEmployees(getArray(empData).map(mapEmployee));
+        setBranches(getArray(branchData).map(mapBranch));
+
+        const allAssets = [
+          ...getArray(hardwareData).map(mapAsset),
+          ...getArray(compData).map(mapAsset),
+          ...getArray(printData).map(mapAsset),
+        ];
+
+        const uniqueAssets = Array.from(
+          new Map(allAssets.map((a) => [a.serial || a.id, a])).values()
+        );
+
+        setAvailableAssets(uniqueAssets.filter(isAvailableAsset));
+      } finally {
+        setDataLoading(false);
       }
-      if (recipientType === "employee") {
-        assignAsset(selectedAssetId, { type: "employee", employeeId: selectedEmp.id });
-      } else {
-        assignAsset(selectedAssetId, { type: "branch", branchId: selectedBranch.id, departmentName: selectedDept });
-      }
-      navigateTo("contract");
-    } else {
-      setStep(step + 1);
     }
-  }
+
+    fetchAll();
+  }, []);
+
+  const empCandidates = employees.filter(
+    (e) =>
+      query === "" ||
+      e.name.toLowerCase().includes(query.toLowerCase()) ||
+      e.id.toLowerCase().includes(query.toLowerCase())
+  );
+
+  const branchCandidates = branches.filter(
+    (b) => query === "" || b.name.toLowerCase().includes(query.toLowerCase())
+  );
+
+  const hasValidRecipient =
+    recipientType === "employee" ? !!selectedEmp : !!selectedBranch;
+
+  const selectedAsset =
+    availableAssets.find((a) => a.id === selectedAssetId) || null;
 
   function switchRecipientType(key) {
     setRecipientType(key);
@@ -63,29 +158,121 @@ export default function NewAssignment() {
     setQuery("");
   }
 
+  async function handleConfirm() {
+    if (!selectedAsset) return;
+
+    if (recipientType !== "employee") {
+      setSubmitError("Branch assignment API is not connected yet.");
+      return;
+    }
+
+    if (!selectedEmp) {
+      setSubmitError("Please select an employee.");
+      return;
+    }
+
+    if (!selectedAsset.serial) {
+      setSubmitError("Selected asset has no serial number, so it cannot be assigned.");
+      return;
+    }
+
+    setSubmitting(true);
+    setSubmitError("");
+
+    try {
+     await apiPost(ENDPOINTS.assign_asset_to_employee, {
+     employee_code: selectedEmp.id,
+     serial_number: selectedAsset.serial,
+
+      });
+
+      setLastContract({
+        docId: `DC-${String(Date.now()).slice(-6)}`,
+        date: new Date().toLocaleDateString("en-GB"),
+        employee: selectedEmp,
+        branchRecipient: null,
+        asset: { ...selectedAsset },
+        officer: currentUser?.name || "IT Asset Manager",
+      });
+
+      navigateTo("contract");
+    } catch (err) {
+      console.log("Assignment failed:", err?.response?.data || err);
+      setSubmitError(
+        typeof err?.response?.data === "string"
+          ? err.response.data
+          : err?.response?.data?.detail ||
+              err?.response?.data?.error ||
+              "Assignment failed. Check employee code and asset serial."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function goNext() {
+    if (step === 3) {
+      handleConfirm();
+    } else {
+      setStep(step + 1);
+    }
+  }
+
   const steps = [
     { n: 1, label: "RECIPIENT", sub: "Identity Selection" },
     { n: 2, label: "ASSETS", sub: "Inventory Selection" },
     { n: 3, label: "LOGISTICS", sub: "Review & Confirm" },
   ];
 
-  const selectedAsset = assets.find((a) => a.id === selectedAssetId);
+  if (dataLoading) {
+    return (
+      <div style={{ padding: 60, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+        Loading assignment data…
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: 28 }}>
       <button
         onClick={() => goBack()}
-        style={{ display: "flex", alignItems: "center", gap: 6, border: "none", background: "none", color: ORANGE, fontWeight: 700, fontSize: 13.5, cursor: "pointer", marginBottom: 14 }}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          border: "none",
+          background: "none",
+          color: ORANGE,
+          fontWeight: 700,
+          fontSize: 13.5,
+          cursor: "pointer",
+          marginBottom: 14,
+        }}
       >
         <ArrowLeft size={15} /> Back
       </button>
-      <div style={{ fontSize: 12.5, color: "#94a3b8", marginBottom: 6 }}>
-        Asset Central &nbsp;&nbsp;<span style={{ color: ORANGE, fontWeight: 700 }}>{editingFromContract ? "Edit Assignment" : "New Assignment"}</span> &nbsp;&nbsp;Batch Returns
+
+      <div style={{ fontWeight: 800, fontSize: 22, color: "#0f172a", marginTop: 12 }}>
+        Hardware Checkout
       </div>
-      <div style={{ fontWeight: 800, fontSize: 22, color: "#0f172a", marginTop: 12 }}>Hardware Checkout</div>
       <div style={{ fontSize: 13.5, color: "#94a3b8", marginTop: 2, marginBottom: 26 }}>
-        Assign technology assets to employees or organizational branches.
+        Assign technology assets to employees.
       </div>
+
+      {submitError && (
+        <div
+          style={{
+            background: "#fee2e2",
+            color: "#dc2626",
+            fontSize: 12.5,
+            padding: "10px 14px",
+            borderRadius: 8,
+            marginBottom: 16,
+          }}
+        >
+          {submitError}
+        </div>
+      )}
 
       <div style={{ display: "flex", alignItems: "center", marginBottom: 28 }}>
         {steps.map((s, i) => (
@@ -108,11 +295,22 @@ export default function NewAssignment() {
                 {step > s.n ? <Check size={15} /> : s.n}
               </div>
               <div>
-                <div style={{ fontSize: 11.5, fontWeight: 800, color: step >= s.n ? "#0f172a" : "#94a3b8", letterSpacing: 0.4 }}>{s.label}</div>
+                <div
+                  style={{
+                    fontSize: 11.5,
+                    fontWeight: 800,
+                    color: step >= s.n ? "#0f172a" : "#94a3b8",
+                    letterSpacing: 0.4,
+                  }}
+                >
+                  {s.label}
+                </div>
                 <div style={{ fontSize: 11, color: "#94a3b8" }}>{s.sub}</div>
               </div>
             </div>
-            {i < steps.length - 1 && <div style={{ flex: 1, height: 1, background: "#eef0f3", margin: "0 14px" }} />}
+            {i < steps.length - 1 && (
+              <div style={{ flex: 1, height: 1, background: "#eef0f3", margin: "0 14px" }} />
+            )}
           </React.Fragment>
         ))}
       </div>
@@ -121,8 +319,18 @@ export default function NewAssignment() {
         <>
           <div style={{ display: "flex", gap: 14, marginBottom: 22 }}>
             {[
-              { key: "employee", title: "Individual Employee", desc: "Assign assets directly to a specific team member.", icon: <Users size={18} /> },
-              { key: "branch", title: "Dept / Branch", desc: "Assign assets to a physical location or department pool.", icon: <Building2 size={18} /> },
+              {
+                key: "employee",
+                title: "Individual Employee",
+                desc: "Assign assets directly to a specific team member.",
+                icon: <Users size={18} />,
+              },
+              {
+                key: "branch",
+                title: "Dept / Branch",
+                desc: "Not connected yet.",
+                icon: <Building2 size={18} />,
+              },
             ].map((opt) => (
               <div
                 key={opt.key}
@@ -133,12 +341,22 @@ export default function NewAssignment() {
                   borderRadius: 10,
                   padding: 18,
                   cursor: "pointer",
-                  position: "relative",
                   background: recipientType === opt.key ? "#fffaf3" : "#fff",
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: "#eef0f3", display: "flex", alignItems: "center", justifyContent: "center", color: "#475569" }}>
+                  <div
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 8,
+                      background: "#eef0f3",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#475569",
+                    }}
+                  >
                     {opt.icon}
                   </div>
                   <div
@@ -152,190 +370,138 @@ export default function NewAssignment() {
                       justifyContent: "center",
                     }}
                   >
-                    {recipientType === opt.key && <div style={{ width: 9, height: 9, borderRadius: "50%", background: ORANGE }} />}
+                    {recipientType === opt.key && (
+                      <div style={{ width: 9, height: 9, borderRadius: "50%", background: ORANGE }} />
+                    )}
                   </div>
                 </div>
-                <div style={{ fontWeight: 800, fontSize: 14.5, color: "#0f172a", marginTop: 12 }}>{opt.title}</div>
-                <div style={{ fontSize: 12.5, color: "#94a3b8", marginTop: 4 }}>{opt.desc}</div>
+                <div style={{ fontWeight: 800, fontSize: 14.5, color: "#0f172a", marginTop: 12 }}>
+                  {opt.title}
+                </div>
+                <div style={{ fontSize: 12.5, color: "#94a3b8", marginTop: 4 }}>
+                  {opt.desc}
+                </div>
               </div>
             ))}
           </div>
 
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              border: "1px solid #eef0f3",
+              borderRadius: 8,
+              padding: "10px 14px",
+              marginBottom: 14,
+            }}
+          >
+            <Search size={15} color="#94a3b8" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={recipientType === "employee" ? "Search employee name or ID…" : "Search branch name…"}
+              style={{ border: "none", outline: "none", fontSize: 13.5, width: "100%" }}
+            />
+          </div>
+
           {recipientType === "employee" ? (
-            <>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#475569", marginBottom: 8 }}>Search Recipient Name or ID</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, border: "1px solid #eef0f3", borderRadius: 8, padding: "10px 14px", marginBottom: 14 }}>
-                <Search size={15} color="#94a3b8" />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="e.g. Marcus Thorne or EMP ID..."
-                  style={{ border: "none", outline: "none", fontSize: 13.5, width: "100%" }}
-                />
-              </div>
-
-              <div style={{ border: "1px solid #eef0f3", borderRadius: 10, overflow: "hidden" }}>
-                {candidates.slice(0, 5).map((e) => (
-                  <div
-                    key={e.id}
-                    onClick={() => setSelectedEmp(e)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "12px 16px",
-                      borderBottom: "1px solid #f3f4f6",
-                      cursor: "pointer",
-                      background: selectedEmp?.id === e.id ? "#fffaf3" : "#fff",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div
-                        style={{
-                          width: 34,
-                          height: 34,
-                          borderRadius: "50%",
-                          background: e.avatarColor,
-                          color: "#fff",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontWeight: 700,
-                          fontSize: 12,
-                        }}
-                      >
-                        {e.name.split(" ").map((p) => p[0]).join("").slice(0, 2)}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0f172a" }}>{e.name}</div>
-                        <div style={{ fontSize: 12, color: "#94a3b8" }}>
-                          {e.role} · ID: {e.id}
-                        </div>
-                      </div>
-                    </div>
-                    {selectedEmp?.id === e.id && (
-                      <div style={{ width: 22, height: 22, borderRadius: "50%", background: ORANGE, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <Check size={13} color="#fff" />
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {candidates.length === 0 && <div style={{ padding: 20, fontSize: 13, color: "#94a3b8", textAlign: "center" }}>No matching employees.</div>}
-              </div>
-            </>
-          ) : (
-            <>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#475569", marginBottom: 8 }}>Search Branch Name or ID</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, border: "1px solid #eef0f3", borderRadius: 8, padding: "10px 14px", marginBottom: 14 }}>
-                <Search size={15} color="#94a3b8" />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="e.g. Sadat City or HQ..."
-                  style={{ border: "none", outline: "none", fontSize: 13.5, width: "100%" }}
-                />
-              </div>
-
-              <div style={{ border: "1px solid #eef0f3", borderRadius: 10, overflow: "hidden", marginBottom: selectedBranch ? 16 : 0 }}>
-                {branchCandidates.slice(0, 6).map((b) => (
-                  <div
-                    key={b.id}
-                    onClick={() => {
-                      setSelectedBranch(b);
-                      setSelectedDept(null);
-                    }}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "12px 16px",
-                      borderBottom: "1px solid #f3f4f6",
-                      cursor: "pointer",
-                      background: selectedBranch?.id === b.id ? "#fffaf3" : "#fff",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div
-                        style={{
-                          width: 34,
-                          height: 34,
-                          borderRadius: 8,
-                          background: NAVY,
-                          color: "#fff",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontWeight: 700,
-                          fontSize: 11,
-                        }}
-                      >
-                        {b.id}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0f172a" }}>{b.name}</div>
-                        <div style={{ fontSize: 12, color: "#94a3b8" }}>{b.region}</div>
-                      </div>
-                    </div>
-                    {selectedBranch?.id === b.id && (
-                      <div style={{ width: 22, height: 22, borderRadius: "50%", background: ORANGE, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <Check size={13} color="#fff" />
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {branchCandidates.length === 0 && <div style={{ padding: 20, fontSize: 13, color: "#94a3b8", textAlign: "center" }}>No matching branches.</div>}
-              </div>
-
-              {selectedBranch && (
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#475569", marginBottom: 8 }}>
-                    Department within {selectedBranch.name} <span style={{ color: "#94a3b8", fontWeight: 500 }}>(optional)</span>
-                  </div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <button
-                      onClick={() => setSelectedDept(null)}
+            <div style={{ border: "1px solid #eef0f3", borderRadius: 10, overflow: "hidden" }}>
+              {empCandidates.slice(0, 6).map((e) => (
+                <div
+                  key={e.id}
+                  onClick={() => setSelectedEmp(e)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "12px 16px",
+                    borderBottom: "1px solid #f3f4f6",
+                    cursor: "pointer",
+                    background: selectedEmp?.id === e.id ? "#fffaf3" : "#fff",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div
                       style={{
-                        padding: "8px 14px",
-                        borderRadius: 999,
-                        border: "1px solid #eef0f3",
-                        cursor: "pointer",
-                        fontSize: 12.5,
+                        width: 34,
+                        height: 34,
+                        borderRadius: "50%",
+                        background: "#0f172a",
+                        color: "#fff",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                         fontWeight: 700,
-                        background: selectedDept === null ? ORANGE : "#fff",
-                        color: selectedDept === null ? "#fff" : "#475569",
+                        fontSize: 12,
                       }}
                     >
-                      Whole Branch
-                    </button>
-                    {selectedBranch.departments.map((d) => (
-                      <button
-                        key={d}
-                        onClick={() => setSelectedDept(d)}
-                        style={{
-                          padding: "8px 14px",
-                          borderRadius: 999,
-                          border: "1px solid #eef0f3",
-                          cursor: "pointer",
-                          fontSize: 12.5,
-                          fontWeight: 700,
-                          background: selectedDept === d ? ORANGE : "#fff",
-                          color: selectedDept === d ? "#fff" : "#475569",
-                        }}
-                      >
-                        {d}
-                      </button>
-                    ))}
+                      {e.name.split(" ").map((p) => p[0]).join("").slice(0, 2)}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0f172a" }}>
+                        {e.name}
+                      </div>
+                      <div style={{ fontSize: 12, color: "#94a3b8" }}>
+                        {e.dept || "—"} · {e.id}
+                      </div>
+                    </div>
                   </div>
+                  {selectedEmp?.id === e.id && (
+                    <div
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: "50%",
+                        background: ORANGE,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Check size={13} color="#fff" />
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {empCandidates.length === 0 && (
+                <div style={{ padding: 20, fontSize: 13, color: "#94a3b8", textAlign: "center" }}>
+                  No matching employees.
                 </div>
               )}
-            </>
+            </div>
+          ) : (
+            <div style={{ border: "1px solid #eef0f3", borderRadius: 10, overflow: "hidden" }}>
+              {branchCandidates.slice(0, 6).map((b) => (
+                <div
+                  key={b.id}
+                  onClick={() => {
+                    setSelectedBranch(b);
+                    setSelectedDept(null);
+                  }}
+                  style={{
+                    padding: "12px 16px",
+                    borderBottom: "1px solid #f3f4f6",
+                    cursor: "pointer",
+                    background: selectedBranch?.id === b.id ? "#fffaf3" : "#fff",
+                  }}
+                >
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0f172a" }}>{b.name}</div>
+                  <div style={{ fontSize: 12, color: "#94a3b8" }}>{b.region}</div>
+                </div>
+              ))}
+            </div>
           )}
         </>
       )}
 
       {step === 2 && (
         <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "#475569", marginBottom: 10 }}>Select an available asset from stock</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#475569", marginBottom: 10 }}>
+            Select an available asset from stock
+          </div>
+
           <div style={{ border: "1px solid #eef0f3", borderRadius: 10, overflow: "hidden" }}>
             {availableAssets.map((a) => (
               <div
@@ -352,7 +518,17 @@ export default function NewAssignment() {
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 8, background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 8,
+                      background: "#f1f5f9",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
                     <CategoryIcon category={a.category} size={16} />
                   </div>
                   <div>
@@ -360,18 +536,34 @@ export default function NewAssignment() {
                       {a.brand} {a.model}
                     </div>
                     <div style={{ fontSize: 12, color: "#94a3b8" }}>
-                      SN: {a.serial} · {a.branch}
+                      SN: {a.serial || "No serial"} · {a.status || "No status"} · {a.branch || "—"}
                     </div>
                   </div>
                 </div>
+
                 {selectedAssetId === a.id && (
-                  <div style={{ width: 22, height: 22, borderRadius: "50%", background: ORANGE, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: "50%",
+                      background: ORANGE,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
                     <Check size={13} color="#fff" />
                   </div>
                 )}
               </div>
             ))}
-            {availableAssets.length === 0 && <div style={{ padding: 20, fontSize: 13, color: "#94a3b8", textAlign: "center" }}>No assets currently in stock.</div>}
+
+            {availableAssets.length === 0 && (
+              <div style={{ padding: 20, fontSize: 13, color: "#94a3b8", textAlign: "center" }}>
+                No assets currently in stock.
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -379,50 +571,32 @@ export default function NewAssignment() {
       {step === 3 && hasValidRecipient && selectedAsset && (
         <Card>
           <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 16 }}>
-            {editingFromContract ? "Review Changes" : "Review Assignment"}
+            Review Assignment
           </div>
-          {recipientType === "employee" ? (
-            <>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f3f4f6" }}>
-                <span style={{ fontSize: 13, color: "#94a3b8" }}>Recipient</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
-                  {selectedEmp.name} ({selectedEmp.role})
-                </span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f3f4f6" }}>
-                <span style={{ fontSize: 13, color: "#94a3b8" }}>Location</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{selectedEmp.location}</span>
-              </div>
-            </>
-          ) : (
-            <>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f3f4f6" }}>
-                <span style={{ fontSize: 13, color: "#94a3b8" }}>Recipient</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
-                  {selectedBranch.name}
-                  {selectedDept ? ` — ${selectedDept} Dept.` : " (Whole Branch)"}
-                </span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f3f4f6" }}>
-                <span style={{ fontSize: 13, color: "#94a3b8" }}>Region</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{selectedBranch.region}</span>
-              </div>
-            </>
-          )}
+
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f3f4f6" }}>
+            <span style={{ fontSize: 13, color: "#94a3b8" }}>Recipient</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
+              {recipientType === "employee" ? selectedEmp.name : selectedBranch.name}
+            </span>
+          </div>
+
           <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f3f4f6" }}>
             <span style={{ fontSize: 13, color: "#94a3b8" }}>Asset</span>
             <span style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
               {selectedAsset.brand} {selectedAsset.model}
             </span>
           </div>
+
           <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0" }}>
             <span style={{ fontSize: 13, color: "#94a3b8" }}>Serial Number</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{selectedAsset.serial}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
+              {selectedAsset.serial || "—"}
+            </span>
           </div>
+
           <div style={{ marginTop: 14, background: "#fef3e2", borderRadius: 8, padding: "10px 14px", fontSize: 12.5, color: "#b45309" }}>
-            {editingFromContract
-              ? "Saving will update this assignment and refresh the delivery contract with the new details."
-              : "Confirming will mark this asset as Assigned and generate a delivery contract."}
+            Confirming will assign this asset through the API.
           </div>
         </Card>
       )}
@@ -446,9 +620,14 @@ export default function NewAssignment() {
         >
           <ChevronLeft size={15} /> Back
         </button>
+
         <button
           onClick={goNext}
-          disabled={(step === 1 && !hasValidRecipient) || (step === 2 && !selectedAssetId)}
+          disabled={
+            submitting ||
+            (step === 1 && !hasValidRecipient) ||
+            (step === 2 && !selectedAssetId)
+          }
           style={{
             display: "flex",
             alignItems: "center",
@@ -460,10 +639,16 @@ export default function NewAssignment() {
             padding: "11px 22px",
             borderRadius: 8,
             cursor: "pointer",
-            background: (step === 1 && !hasValidRecipient) || (step === 2 && !selectedAssetId) ? "#fcd9a8" : ORANGE,
+            background:
+              (step === 1 && !hasValidRecipient) ||
+              (step === 2 && !selectedAssetId) ||
+              submitting
+                ? "#fcd9a8"
+                : ORANGE,
           }}
         >
-          {step === 3 ? (editingFromContract ? "Save Changes" : "Confirm & Generate Contract") : "Next Step"} <ChevronRight size={15} />
+          {step === 3 ? (submitting ? "Saving…" : "Confirm & Generate Contract") : "Next Step"}
+          <ChevronRight size={15} />
         </button>
       </div>
     </div>

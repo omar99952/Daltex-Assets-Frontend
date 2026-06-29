@@ -1,20 +1,38 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { apiGet } from "../api/client.js";
+import { ENDPOINTS } from "../api/endpoints.js";
 import Modal from "./Modal.jsx";
 import FormField, { inputStyle } from "./FormField.jsx";
 import { ORANGE } from "../theme.js";
 
 const CATEGORIES = ["Laptops & PCs", "Monitors", "Printers", "Networking", "Peripherals"];
-const BRANCHES = ["London HQ", "New York Hub", "Berlin Office", "Singapore R&D", "Khatatba Branch", "Sadat City Farm"];
+const FALLBACK_BRANCHES = [
+  { id: "London HQ", name: "London HQ" },
+  { id: "New York Hub", name: "New York Hub" },
+  { id: "Berlin Office", name: "Berlin Office" },
+  { id: "Singapore R&D", name: "Singapore R&D" },
+  { id: "Khatatba Branch", name: "Khatatba Branch" },
+  { id: "Sadat City Farm", name: "Sadat City Farm" },
+];
 
 export default function AddDeviceModal({ onClose, onSubmit }) {
-  const [form, setForm] = useState({
-    category: CATEGORIES[0],
-    brand: "",
-    model: "",
-    serial: "",
-    branch: BRANCHES[0],
-  });
+  const [apiBranches, setApiBranches] = useState(null);
+  const [form, setForm] = useState({ category: CATEGORIES[0], brand: "", model: "", serial: "", branchId: "" });
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    apiGet(ENDPOINTS.get_all_branches)
+      .then((data) => {
+        const mapped = data.map((b) => ({ id: String(b.branch_id || b.id), name: b.name_en || b.name || "" }));
+        setApiBranches(mapped);
+        if (mapped.length > 0) setForm((f) => ({ ...f, branchId: mapped[0].id }));
+      })
+      .catch(() => {
+        setForm((f) => ({ ...f, branchId: FALLBACK_BRANCHES[0].id }));
+      });
+  }, []);
+
+  const branches = apiBranches || FALLBACK_BRANCHES;
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -25,7 +43,8 @@ export default function AddDeviceModal({ onClose, onSubmit }) {
       setError("Brand, model, and serial number are required.");
       return;
     }
-    onSubmit(form);
+    const selectedBranch = branches.find((b) => b.id === form.branchId);
+    onSubmit({ ...form, branch: selectedBranch?.name || form.branchId });
   }
 
   return (
@@ -66,7 +85,7 @@ export default function AddDeviceModal({ onClose, onSubmit }) {
         <FormField label="Brand">
           <input value={form.brand} onChange={(e) => update("brand", e.target.value)} placeholder="e.g. Dell, Apple, Cisco" style={inputStyle} />
         </FormField>
-        <FormField label="Model">
+        <FormField label="Model / Part No.">
           <input value={form.model} onChange={(e) => update("model", e.target.value)} placeholder='e.g. XPS 15 (9530)' style={inputStyle} />
         </FormField>
       </div>
@@ -76,9 +95,9 @@ export default function AddDeviceModal({ onClose, onSubmit }) {
       </FormField>
 
       <FormField label="Branch / Location">
-        <select value={form.branch} onChange={(e) => update("branch", e.target.value)} style={inputStyle}>
-          {BRANCHES.map((b) => (
-            <option key={b} value={b}>{b}</option>
+        <select value={form.branchId} onChange={(e) => update("branchId", e.target.value)} style={inputStyle}>
+          {branches.map((b) => (
+            <option key={b.id} value={b.id}>{b.name}</option>
           ))}
         </select>
       </FormField>

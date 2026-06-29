@@ -6,7 +6,6 @@ import { AppProvider, useApp } from "./context/AppContext.jsx";
 
 import Sidebar from "./components/Sidebar.jsx";
 import TopBar from "./components/TopBar.jsx";
-import AddDeviceModal from "./components/AddDeviceModal.jsx";
 import HelpGuideModal from "./components/HelpGuideModal.jsx";
 
 import Login from "./pages/Login.jsx";
@@ -36,12 +35,9 @@ function Shell() {
     navigateTo,
     setInventoryStatusFilter,
     setInventoryCategory,
-    showAddDeviceModal,
+    inventoryCategory,
     setShowAddDeviceModal,
-    addAsset,
-    activity,
     lastReadActivityId,
-    markActivityAsRead,
     settings,
     updateSetting,
     currentUser,
@@ -49,26 +45,35 @@ function Shell() {
     sidebarCollapsed,
     setSidebarCollapsed,
   } = useApp();
+
   const [showHelpGuide, setShowHelpGuide] = useState(false);
+
+  // Temporary until activity/notifications come from API
+  const activity = [];
+  const hasUnread = false;
+
+  function markActivityAsRead() {
+    // Empty for now because seed/local activity was removed
+  }
 
   function navigate(key) {
     if (key === "inventory") {
       setInventoryStatusFilter(null);
       setInventoryCategory(null);
     }
+
     navigateTo(key);
   }
 
   function handleAddNewAsset() {
+    if (page !== "inventoryCategory") {
+      setInventoryCategory(inventoryCategory || "PCs");
+      navigateTo("inventoryCategory");
+    }
+
     setShowAddDeviceModal(true);
   }
 
-  function handleAddDeviceSubmit(form) {
-    addAsset(form);
-    setShowAddDeviceModal(false);
-  }
-
-  const hasUnread = lastReadActivityId === null ? activity.length > 0 : activity.length > 0 && activity[0].id !== lastReadActivityId;
   const activeNav = ["newAssignment", "contract"].includes(page)
     ? "assignments"
     : page === "employeeDetail"
@@ -80,19 +85,27 @@ function Shell() {
     : page;
 
   return (
-    <div style={{ display: "flex", height: "100vh", background: "#f4f5f7", fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+    <div
+      style={{
+        display: "flex",
+        height: "100vh",
+        background: "#f4f5f7",
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+      }}
+    >
       {page !== "home" && (
         <Sidebar
           items={NAV_ITEMS}
           activePage={activeNav}
           onNavigate={navigate}
-          onAddNewAsset={handleAddNewAsset}
+          onLogout={logout}
           brand="DALTEX HQ"
           sub="IT Asset Management"
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
         />
       )}
+
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         <TopBar
           page={page}
@@ -108,6 +121,7 @@ function Shell() {
           updateSetting={updateSetting}
           onOpenHelpGuide={() => setShowHelpGuide(true)}
         />
+
         <div style={{ flex: 1, overflowY: "auto" }}>
           {page === "home" && <HomePage />}
           {page === "dashboard" && <Dashboard />}
@@ -123,7 +137,7 @@ function Shell() {
           {page === "contract" && <ContractPreview />}
         </div>
       </div>
-      {showAddDeviceModal && <AddDeviceModal onClose={() => setShowAddDeviceModal(false)} onSubmit={handleAddDeviceSubmit} />}
+
       {showHelpGuide && <HelpGuideModal onClose={() => setShowHelpGuide(false)} />}
     </div>
   );
@@ -131,6 +145,7 @@ function Shell() {
 
 function Root() {
   const { isAuthenticated } = useApp();
+
   return isAuthenticated ? <Shell /> : <Login />;
 }
 
