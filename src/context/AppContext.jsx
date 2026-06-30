@@ -24,6 +24,7 @@ export function AppProvider({ children }) {
 
   const [inventoryStatusFilter, setInventoryStatusFilter] = useState(null);
   const [inventoryCategory, setInventoryCategory] = useState(null);
+  const [inventoryCategoryId, setInventoryCategoryId] = useState(null);
   const [showAddDeviceModal, setShowAddDeviceModal] = useState(false);
 
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
@@ -128,6 +129,8 @@ export function AppProvider({ children }) {
     setInventoryStatusFilter,
     inventoryCategory,
     setInventoryCategory,
+    inventoryCategoryId,
+    setInventoryCategoryId,
     goToInventory,
 
     showAddDeviceModal,

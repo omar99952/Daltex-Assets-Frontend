@@ -33,6 +33,7 @@ import {
 export function InventoryCategoryPage() {
   const {
     inventoryCategory,
+    inventoryCategoryId,
     globalSearchQuery,
     setGlobalSearchQuery,
     goBack,
@@ -61,7 +62,7 @@ export function InventoryCategoryPage() {
       try {
         setApiLoading(true);
         setApiError(null);
-        const assets = await fetchAssetsByCategory(label);
+        const assets = await fetchAssetsByCategory(label, inventoryCategoryId);
         setApiAssets(assets);
       } catch {
         setApiError("Could not reach the server.");
@@ -72,7 +73,7 @@ export function InventoryCategoryPage() {
     }
 
     loadCategoryAssets();
-  }, [label]);
+  }, [label, inventoryCategoryId]);
 
   const query = globalSearchQuery;
   const scopeBase = apiAssets;

@@ -9,19 +9,42 @@ import {
 } from "../utils/assetMappers";
 import { assetToApiBody } from "../utils/assetHelpers";
 
-export async function fetchAssetsByCategory(label) {
-  switch (label) {
-    case "PCs":
-      return (await apiGet(ENDPOINTS.get_all_computers)).map(mapComputer);
-    case "Printers":
-      return (await apiGet(ENDPOINTS.get_all_printers)).map(mapPrinter);
-    case "Monitors":
-      return (await apiGet(ENDPOINTS.get_all_monitors)).map(mapMonitor);
-    case "Tablets":
-      return (await apiGet(ENDPOINTS.get_all_tablets)).map(mapTablet);
-    default:
-      return (await apiGet(ENDPOINTS.get_all_hardware_assets)).map(mapHardwareAsset);
+function extractRawCategoryId(cat) {
+  if (cat == null) return null;
+  if (typeof cat === "object") return cat.id ?? null;
+  const n = Number(cat);
+  return Number.isFinite(n) ? n : null;
+}
+
+export async function fetchAssetsByCategory(label, categoryId) {
+  const lower = (label || "").toLowerCase().trim();
+  const targetId = categoryId != null ? Number(categoryId) : null;
+
+  function byId(a) {
+    if (targetId === null) return true;
+    return extractRawCategoryId(a.category) === targetId;
   }
+
+  async function fetchFiltered(endpoint, mapper) {
+    const raw = await apiGet(endpoint);
+    const arr = Array.isArray(raw) ? raw : raw?.results || [];
+    return arr.filter(byId).map(mapper);
+  }
+
+  if (lower === "pcs" || lower === "laptops & pcs" || lower === "computers" || lower === "laptops") {
+    return fetchFiltered(ENDPOINTS.get_all_computers, mapComputer);
+  }
+  if (lower === "printers") {
+    return fetchFiltered(ENDPOINTS.get_all_printers, mapPrinter);
+  }
+  if (lower === "monitors" || lower === "screens" || lower === "displays") {
+    return fetchFiltered(ENDPOINTS.get_all_monitors, mapMonitor);
+  }
+  if (lower === "tablets") {
+    return fetchFiltered(ENDPOINTS.get_all_tablets, mapTablet);
+  }
+
+  return fetchFiltered(ENDPOINTS.get_all_hardware_assets, mapHardwareAsset);
 }
 
 export async function fetchAssetsByStatus(statusFilter) {
