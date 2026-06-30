@@ -1,3 +1,35 @@
+import { useState, useEffect } from "react";
+import {
+  Boxes,
+  Users,
+  Building2,
+  Wrench,
+  Download,
+  Plus,
+  MoreVertical,
+  AlertCircle,
+  Filter,
+  Search,
+} from "lucide-react";
+import { useApp } from "../../context/AppContext.jsx";
+import BackButton from "../../components/BackButton.jsx";
+import Card from "../../components/Card.jsx";
+import StatCard from "../../components/StatCard.jsx";
+import CategoryIcon from "../../components/CategoryIcon.jsx";
+import CsvPreviewModal from "../../components/CsvPreviewModal.jsx";
+import ConfirmDialog from "../../components/ConfirmDialog.jsx";
+import Modal from "../../components/Modal.jsx";
+import AddDeviceModal from "../../components/AddDeviceModal.jsx";
+import AssetAdvancedSettingsPopover from "../../components/Inventory/AssetAdvancedSettingsPopover.jsx";
+import AssetTable from "../../components/Inventory/AssetTable.jsx";
+import { NAVY } from "../../theme.js";
+import { INVENTORY_CATEGORIES, categoryDataKey } from "../../utils/assetHelpers.js";
+import {
+  fetchAssetsByCategory,
+  createAsset,
+  deleteAsset as deleteAssetRequest,
+} from "../../services/assetService.js";
+
 export function InventoryCategoryPage() {
   const {
     inventoryCategory,
@@ -24,22 +56,21 @@ export function InventoryCategoryPage() {
   const label = inventoryCategory || INVENTORY_CATEGORIES[0];
   const dataKey = categoryDataKey(label);
 
-  async function loadCategoryAssets() {
-    try {
-      setApiLoading(true);
-      setApiError(null);
-
-      const assets = await fetchAssetsByCategory(label);
-      setApiAssets(assets);
-    } catch {
-      setApiError("Could not reach the server.");
-      setApiAssets([]);
-    } finally {
-      setApiLoading(false);
-    }
-  }
-
   useEffect(() => {
+    async function loadCategoryAssets() {
+      try {
+        setApiLoading(true);
+        setApiError(null);
+        const assets = await fetchAssetsByCategory(label);
+        setApiAssets(assets);
+      } catch {
+        setApiError("Could not reach the server.");
+        setApiAssets([]);
+      } finally {
+        setApiLoading(false);
+      }
+    }
+
     loadCategoryAssets();
   }, [label]);
 
@@ -92,6 +123,14 @@ export function InventoryCategoryPage() {
     setPendingDeleteId(null);
   }
 
+  function handleDeleteClick(id) {
+    if (!deleteAssetEnabled) {
+      setShowDeleteError(true);
+      return;
+    }
+    setPendingDeleteId(id);
+  }
+
   const csvHeaders = ["BRAND", "MODEL", "SERIAL NUMBER", "STATUS", "BRANCH"];
   const csvRows = filtered.map((a) => ({
     BRAND: a.brand,
@@ -107,7 +146,17 @@ export function InventoryCategoryPage() {
       <BackButton onClick={() => goBack()} />
 
       {apiError && (
-        <div style={{ background: "#fef9f0", border: "1px solid #fde68a", borderRadius: 8, padding: "10px 14px", fontSize: 12.5, color: "#92400e", marginBottom: 14 }}>
+        <div
+          style={{
+            background: "#fef9f0",
+            border: "1px solid #fde68a",
+            borderRadius: 8,
+            padding: "10px 14px",
+            fontSize: 12.5,
+            color: "#92400e",
+            marginBottom: 14,
+          }}
+        >
           {apiError}
         </div>
       )}
@@ -116,9 +165,26 @@ export function InventoryCategoryPage() {
         Assets &gt; {label}
       </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 20,
+        }}
+      >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 34, height: 34, borderRadius: 8, background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 8,
+              background: "#e2e8f0",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
             <CategoryIcon category={dataKey} size={16} />
           </div>
           <div style={{ fontWeight: 800, fontSize: 22, color: "#0f172a" }}>{label}</div>
@@ -197,15 +263,42 @@ export function InventoryCategoryPage() {
 
       <div style={{ display: "flex", gap: 16, marginBottom: 20 }}>
         <StatCard icon={<Boxes size={17} color={NAVY} />} iconBg="#e2e8f0" label="TOTAL MANAGED" value={total} />
-        <StatCard icon={<Users size={17} color="#475569" />} iconBg="#e2e8f0" label="ASSIGNED" value={assigned} sub={<div style={{ fontSize: 12, color: "#94a3b8" }}>{total ? Math.round((assigned / total) * 100) : 0}% util</div>} />
+        <StatCard
+          icon={<Users size={17} color="#475569" />}
+          iconBg="#e2e8f0"
+          label="ASSIGNED"
+          value={assigned}
+          sub={
+            <div style={{ fontSize: 12, color: "#94a3b8" }}>
+              {total ? Math.round((assigned / total) * 100) : 0}% util
+            </div>
+          }
+        />
         <StatCard icon={<Building2 size={17} color="#475569" />} iconBg="#e2e8f0" label="IN STOCK" value={inStock} />
-        <StatCard icon={<Wrench size={17} color="#dc2626" />} iconBg="#fee2e2" label="IN REPAIR" value={repair} danger sub={<div style={{ fontSize: 12, color: "#94a3b8" }}>Pending fix</div>} />
+        <StatCard
+          icon={<Wrench size={17} color="#dc2626" />}
+          iconBg="#fee2e2"
+          label="IN REPAIR"
+          value={repair}
+          danger
+          sub={<div style={{ fontSize: 12, color: "#94a3b8" }}>Pending fix</div>}
+        />
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
           <Filter size={12} color="#94a3b8" />
-          <span style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", letterSpacing: 0.4, textTransform: "uppercase" }}>Filter</span>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: "#94a3b8",
+              letterSpacing: 0.4,
+              textTransform: "uppercase",
+            }}
+          >
+            Filter
+          </span>
         </div>
 
         <div style={{ width: 1, height: 16, background: "#e2e8f0", flexShrink: 0 }} />
@@ -229,7 +322,18 @@ export function InventoryCategoryPage() {
           </button>
         ))}
 
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, border: "1px solid #eef0f3", borderRadius: 7, padding: "7px 12px", background: "#fff" }}>
+        <div
+          style={{
+            marginLeft: "auto",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            border: "1px solid #eef0f3",
+            borderRadius: 7,
+            padding: "7px 12px",
+            background: "#fff",
+          }}
+        >
           <Search size={13} color="#94a3b8" />
           <input
             value={query}
@@ -241,79 +345,26 @@ export function InventoryCategoryPage() {
       </div>
 
       <Card style={{ padding: 0 }}>
-        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", padding: "12px 20px", borderBottom: "1px solid #eef0f3" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            alignItems: "center",
+            padding: "12px 20px",
+            borderBottom: "1px solid #eef0f3",
+          }}
+        >
           <div style={{ fontSize: 12.5, color: "#94a3b8" }}>
             {apiLoading ? "Loading…" : `${filtered.length} of ${scopeBase.length} items`}
           </div>
         </div>
 
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ background: "#f8fafc", textAlign: "left" }}>
-              {["BRAND", "MODEL", "SERIAL NUMBER", "STATUS", "ASSIGNED TO", "", ""].map((h) => (
-                <th key={h} style={{ padding: "10px 20px", fontSize: 11, color: "#94a3b8", fontWeight: 700, borderBottom: "1px solid #eef0f3" }}>
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-
-          <tbody>
-            {apiLoading ? (
-              <tr>
-                <td colSpan={7} style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
-                  Loading assets…
-                </td>
-              </tr>
-            ) : (
-              filtered.map((a) => (
-                <tr
-                  key={a.id}
-                  onClick={() => openAssetDetail(a.id, a.category)}
-                  style={{ borderBottom: "1px solid #f3f4f6", cursor: "pointer" }}
-                >
-                  <td style={{ padding: "14px 20px", fontSize: 13, color: "#475569" }}>{a.brand}</td>
-                  <td style={{ padding: "14px 20px", fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{a.model}</td>
-                  <td style={{ padding: "14px 20px", fontSize: 12.5, color: "#94a3b8" }}>SN: {a.serial}</td>
-                  <td style={{ padding: "14px 20px" }}><StatusPill status={a.status} /></td>
-                  <td style={{ padding: "14px 20px", fontSize: 13, color: "#475569" }}>{displayAssignedTo(a.assignedTo)}</td>
-                  <td style={{ padding: "14px 20px" }}><ChevronRight size={16} color="#cbd5e1" /></td>
-                  <td style={{ padding: "14px 20px" }}>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-
-                        if (!deleteAssetEnabled) {
-                          setShowDeleteError(true);
-                          return;
-                        }
-
-                        setPendingDeleteId(a.id);
-                      }}
-                      title="Delete asset"
-                      style={{
-                        border: "none",
-                        background: "none",
-                        cursor: "pointer",
-                        color: "#fca5a5",
-                      }}
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-
-            {!apiLoading && filtered.length === 0 && (
-              <tr>
-                <td colSpan={7} style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
-                  No assets match your search in this category.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        <AssetTable
+          assets={filtered}
+          loading={apiLoading}
+          onRowClick={(a) => openAssetDetail(a.id, inventoryCategory)}
+          onDeleteClick={handleDeleteClick}
+        />
       </Card>
 
       {showCsvPreview && (
@@ -338,7 +389,18 @@ export function InventoryCategoryPage() {
       {showDeleteError && (
         <Modal title="Deletion Disabled" onClose={() => setShowDeleteError(false)} width={400}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 20 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 8, background: "#fee2e2", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 8,
+                background: "#fee2e2",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
               <AlertCircle size={18} color="#dc2626" />
             </div>
 
@@ -347,7 +409,8 @@ export function InventoryCategoryPage() {
                 Asset deletion is not enabled
               </div>
               <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.55 }}>
-                Open <strong>Advanced Settings</strong> and enable asset deletion to proceed.
+                Open <strong>Advanced Settings</strong> (⋮ button in the toolbar) and enable asset
+                deletion to proceed.
               </div>
             </div>
           </div>

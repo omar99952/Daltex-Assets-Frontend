@@ -1,3 +1,8 @@
+import { useState } from "react";
+import Modal from "../Modal.jsx";
+import FormField, { inputStyle } from "../FormField.jsx";
+import { NAVY } from "../../theme.js";
+
 function AssetEditModal({ asset, onClose, onSubmit }) {
   const isComputer = asset.category === "Laptops & PCs";
   const isPrinter = asset.category === "Printers";
@@ -134,4 +139,5 @@ function AssetEditModal({ asset, onClose, onSubmit }) {
     </Modal>
   );
 }
+
 export default AssetEditModal;

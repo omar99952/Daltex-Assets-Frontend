@@ -11,6 +11,7 @@ export const ENDPOINTS = {
     update_computer: (id) => `/computers/${id}/`,
     get_computers_by_pc_type: (pcType) => `/computers/?pc_type=${pcType}`,
     get_all_tablets: `/tablets/`,
+    get_tablet_by_id: (id) => `/tablets/${id}/`,
     post_new_tablet: `/tablets/`,
     delete_tablet: (id) => `/tablets/${id}/`,
     get_all_monitors: `/monitors/`,

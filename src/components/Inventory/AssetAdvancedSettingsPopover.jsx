@@ -1,3 +1,6 @@
+import { useRef, useEffect } from "react";
+import { Settings } from "lucide-react";
+
 function AssetAdvancedSettingsPopover({ deleteEnabled, setDeleteEnabled, onClose }) {
   const ref = useRef(null);
 
@@ -70,4 +73,5 @@ function AssetAdvancedSettingsPopover({ deleteEnabled, setDeleteEnabled, onClose
     </div>
   );
 }
+
 export default AssetAdvancedSettingsPopover;

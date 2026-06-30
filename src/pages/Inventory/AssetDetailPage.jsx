@@ -1,5 +1,26 @@
+import { useState, useEffect } from "react";
+import { Boxes, Pencil } from "lucide-react";
+import { useApp } from "../../context/AppContext.jsx";
+import BackButton from "../../components/BackButton.jsx";
+import Card from "../../components/Card.jsx";
+import StatusPill from "../../components/StatusPill.jsx";
+import CategoryIcon from "../../components/CategoryIcon.jsx";
+import ConfirmDialog from "../../components/ConfirmDialog.jsx";
+import { Row } from "../../components/Misc.jsx";
+import AssetEditModal from "../../components/Inventory/AssetEditModal.jsx";
+import DetailSection from "../../components/Inventory/DetailSection.jsx";
+import AssetHistoryList from "../../components/Inventory/AssetHistoryList.jsx";
 import AssetAssignmentSection from "../../components/Inventory/AssetAssignmentSection.jsx";
-export function AssetDetailPage() {
+import { ORANGE } from "../../theme.js";
+import {
+  fetchAssetDetails,
+  fetchAssignedEmployee,
+  fetchAssetHistory,
+  updateAsset,
+  returnAssetToStock,
+} from "../../services/assetService.js";
+
+export default function AssetDetailPage() {
   const { selectedAssetId, selectedAssetType, goBack } = useApp();
 
   const [pendingReturnId, setPendingReturnId] = useState(null);
@@ -9,39 +30,39 @@ export function AssetDetailPage() {
   const [assetHistory, setAssetHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
-  async function loadAssetDetails() {
+  useEffect(() => {
     if (!selectedAssetId) return;
 
     setDetailLoading(true);
     setHistoryLoading(true);
 
-    try {
-      const mapped = await fetchAssetDetails(selectedAssetId, selectedAssetType);
+    async function loadAssetDetails() {
+      try {
+        const mapped = await fetchAssetDetails(selectedAssetId, selectedAssetType);
 
-      let assignedEmployee = null;
-      let history = [];
+        let assignedEmployee = null;
+        let history = [];
 
-      if (mapped.serial) {
-        assignedEmployee = await fetchAssignedEmployee(mapped.serial);
-        history = await fetchAssetHistory(mapped.serial);
+        if (mapped.serial) {
+          assignedEmployee = await fetchAssignedEmployee(mapped.serial);
+          history = await fetchAssetHistory(mapped.serial);
+        }
+
+        setApiAsset({
+          ...mapped,
+          assignedTo: assignedEmployee || mapped.assignedTo || null,
+        });
+
+        setAssetHistory(history);
+      } catch {
+        setApiAsset(null);
+        setAssetHistory([]);
+      } finally {
+        setDetailLoading(false);
+        setHistoryLoading(false);
       }
-
-      setApiAsset({
-        ...mapped,
-        assignedTo: assignedEmployee || mapped.assignedTo || null,
-      });
-
-      setAssetHistory(history);
-    } catch {
-      setApiAsset(null);
-      setAssetHistory([]);
-    } finally {
-      setDetailLoading(false);
-      setHistoryLoading(false);
     }
-  }
 
-  useEffect(() => {
     loadAssetDetails();
   }, [selectedAssetId, selectedAssetType]);
 
@@ -64,7 +85,6 @@ export function AssetDetailPage() {
   async function handleReturnToStock(id) {
     try {
       await returnAssetToStock(asset);
-
       setApiAsset((prev) =>
         prev ? { ...prev, status: "In Stock", assignedTo: null } : null
       );
@@ -79,9 +99,7 @@ export function AssetDetailPage() {
     return (
       <div style={{ padding: 60, textAlign: "center" }}>
         <Boxes size={36} color="#cbd5e1" />
-        <div style={{ marginTop: 12, color: "#94a3b8", fontSize: 14 }}>
-          Asset not found.
-        </div>
+        <div style={{ marginTop: 12, color: "#94a3b8", fontSize: 14 }}>Asset not found.</div>
         <button
           onClick={() => goBack()}
           style={{
@@ -118,7 +136,17 @@ export function AssetDetailPage() {
       <BackButton onClick={() => goBack()} />
 
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
-        <div style={{ width: 52, height: 52, borderRadius: 12, background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div
+          style={{
+            width: 52,
+            height: 52,
+            borderRadius: 12,
+            background: "#e2e8f0",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
           <CategoryIcon category={asset.category} size={24} />
         </div>
 
@@ -126,9 +154,7 @@ export function AssetDetailPage() {
           <div style={{ fontWeight: 800, fontSize: 20, color: "#0f172a" }}>
             {asset.brand} {asset.model}
           </div>
-          <div style={{ fontSize: 13, color: "#94a3b8" }}>
-            SN: {asset.serial}
-          </div>
+          <div style={{ fontSize: 13, color: "#94a3b8" }}>SN: {asset.serial}</div>
         </div>
 
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
@@ -193,11 +219,28 @@ export function AssetDetailPage() {
 
             {(asset.keyboardBrand || asset.mouseBrand || asset.bagBrand) && (
               <DetailSection title="Peripherals">
-                {asset.keyboardBrand && <Row label="Keyboard" value={`${asset.keyboardBrand} ${asset.keyboardModel || ""}`.trim()} />}
-                {asset.keyboardSerial && <Row label="Keyboard Serial" value={asset.keyboardSerial} />}
-                {asset.mouseBrand && <Row label="Mouse" value={`${asset.mouseBrand} ${asset.mouseModel || ""}`.trim()} />}
+                {asset.keyboardBrand && (
+                  <Row
+                    label="Keyboard"
+                    value={`${asset.keyboardBrand} ${asset.keyboardModel || ""}`.trim()}
+                  />
+                )}
+                {asset.keyboardSerial && (
+                  <Row label="Keyboard Serial" value={asset.keyboardSerial} />
+                )}
+                {asset.mouseBrand && (
+                  <Row
+                    label="Mouse"
+                    value={`${asset.mouseBrand} ${asset.mouseModel || ""}`.trim()}
+                  />
+                )}
                 {asset.mouseSerial && <Row label="Mouse Serial" value={asset.mouseSerial} />}
-                {asset.bagBrand && <Row label="Bag" value={`${asset.bagBrand} — ${asset.bagModelDescription || ""}`.trim()} />}
+                {asset.bagBrand && (
+                  <Row
+                    label="Bag"
+                    value={`${asset.bagBrand} — ${asset.bagModelDescription || ""}`.trim()}
+                  />
+                )}
               </DetailSection>
             )}
           </>
@@ -215,7 +258,9 @@ export function AssetDetailPage() {
 
             {(asset.cartridgeNumber || asset.inkDetails) && (
               <DetailSection title="Cartridge / Ink">
-                {asset.cartridgeNumber && <Row label="Cartridge No." value={asset.cartridgeNumber} />}
+                {asset.cartridgeNumber && (
+                  <Row label="Cartridge No." value={asset.cartridgeNumber} />
+                )}
                 {asset.cartridgeColor && <Row label="Color" value={asset.cartridgeColor} />}
                 {asset.inkDetails && <Row label="Ink Details" value={asset.inkDetails} />}
               </DetailSection>
@@ -223,7 +268,9 @@ export function AssetDetailPage() {
 
             {(asset.macAddressEth || asset.ipAddressEth || asset.macAddressWifi) && (
               <DetailSection title="Network">
-                {asset.activeConnection && <Row label="Active Connection" value={asset.activeConnection} />}
+                {asset.activeConnection && (
+                  <Row label="Active Connection" value={asset.activeConnection} />
+                )}
                 {asset.macAddressEth && <Row label="MAC (Ethernet)" value={asset.macAddressEth} />}
                 {asset.ipAddressEth && <Row label="IP (Ethernet)" value={asset.ipAddressEth} />}
                 {asset.macAddressWifi && <Row label="MAC (Wi-Fi)" value={asset.macAddressWifi} />}
@@ -232,117 +279,26 @@ export function AssetDetailPage() {
           </>
         )}
 
-        <div style={{ borderTop: "1px solid #eef0f3", paddingTop: 18, marginTop: 18 }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: "#94a3b8", letterSpacing: 0.4, marginBottom: 12, textTransform: "uppercase" }}>
-            Current Assignment
-          </div>
-
-          {asset.assignedTo ? (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#0f172a", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 12 }}>
-                  {String(asset.assignedTo).slice(0, 2).toUpperCase()}
-                </div>
-
-                <div>
-                  <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0f172a" }}>
-                    {asset.assignedTo}
-                  </div>
-                  <div style={{ fontSize: 12, color: "#94a3b8" }}>
-                    Assigned employee
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setPendingReturnId(asset.id)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  border: "1px solid #eef0f3",
-                  background: "#fff",
-                  color: "#475569",
-                  fontWeight: 700,
-                  fontSize: 12.5,
-                  padding: "8px 14px",
-                  borderRadius: 8,
-                  cursor: "pointer",
-                }}
-              >
-                <RotateCcw size={13} /> Return to Stock
-              </button>
-            </div>
-          ) : (
-            <div style={{ fontSize: 13, color: "#94a3b8" }}>
-              No employee assigned.
-            </div>
-          )}
-        </div>
+        <AssetAssignmentSection
+          assignedTo={asset.assignedTo}
+          onReturnToStock={() => setPendingReturnId(asset.id)}
+        />
 
         <div style={{ borderTop: "1px solid #eef0f3", paddingTop: 18, marginTop: 18 }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: "#94a3b8", letterSpacing: 0.4, marginBottom: 14, textTransform: "uppercase" }}>
+          <div
+            style={{
+              fontWeight: 700,
+              fontSize: 13,
+              color: "#94a3b8",
+              letterSpacing: 0.4,
+              marginBottom: 14,
+              textTransform: "uppercase",
+            }}
+          >
             Assignment History
           </div>
 
-          {historyLoading ? (
-            <div style={{ fontSize: 13, color: "#94a3b8" }}>Loading history…</div>
-          ) : assetHistory.length === 0 ? (
-            <div style={{ fontSize: 13, color: "#94a3b8" }}>
-              No history found for this asset.
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              {assetHistory.map((h, i) => {
-                const type = (h.action_type || h.action || h.type || "").toLowerCase();
-
-                let icon = <ClipboardCheck size={13} color="#475569" />;
-                let bg = "#e2e8f0";
-
-                if (type === "issue" || type === "assign" || type === "assigned") {
-                  icon = <Laptop size={13} color="#d97706" />;
-                  bg = "#fef3e2";
-                } else if (type === "return" || type === "returned") {
-                  icon = <RotateCcw size={13} color="#16a34a" />;
-                  bg = "#dcfce7";
-                } else if (type === "repair") {
-                  icon = <Wrench size={13} color="#dc2626" />;
-                  bg = "#fee2e2";
-                }
-
-                return (
-                  <div key={h.id || i} style={{ display: "flex", gap: 12, alignItems: "flex-start", padding: "10px 0", borderBottom: "1px solid #f3f4f6" }}>
-                    <div style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0, background: bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      {icon}
-                    </div>
-
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                        <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a" }}>
-                          {getEmployeeFromHistory(h) || "—"}
-                        </div>
-
-                        <div style={{ fontSize: 11, color: "#94a3b8", flexShrink: 0, marginLeft: 10 }}>
-                          {h.assignment_date || h.date || h.created_at || ""}
-                        </div>
-                      </div>
-
-                      <div style={{ fontSize: 12.5, color: "#64748b", marginTop: 2 }}>
-                        {h.action_type || h.action || h.type || "Event"}
-                        {h.asset_serial ? ` · ${h.asset_serial}` : ""}
-                      </div>
-
-                      {h.notes && (
-                        <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 2 }}>
-                          {h.notes}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <AssetHistoryList history={assetHistory} loading={historyLoading} />
         </div>
       </Card>
 
