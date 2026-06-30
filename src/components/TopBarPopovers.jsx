@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
-import { BookOpen, MessageCircle, ExternalLink } from "lucide-react";
+import { BookOpen, MessageCircle, ExternalLink, MailOpen, Mail } from "lucide-react";
 import { ORANGE } from "../theme.js";
 
-export function NotificationsPopover({ activity, lastReadActivityId, onClose }) {
+export function NotificationsPopover({ activity, lastReadActivityId, readNotifIds, toggleNotifRead, markAllNotifsRead, onClose }) {
   const ref = useRef(null);
   useEffect(() => {
     function onClick(e) {
@@ -13,7 +13,17 @@ export function NotificationsPopover({ activity, lastReadActivityId, onClose }) 
   }, [onClose]);
 
   const recent = activity.slice(0, 8);
-  let passedUnread = lastReadActivityId === null ? false : true;
+  const ids = recent.map((a) => a.id);
+
+  function isUnread(a) {
+    if (readNotifIds && readNotifIds.has(a.id)) return false;
+    if (lastReadActivityId === null) return true;
+    const idx = recent.findIndex((x) => x.id === lastReadActivityId);
+    if (idx === -1) return true;
+    return recent.indexOf(a) < idx;
+  }
+
+  const unreadCount = recent.filter(isUnread).length;
 
   return (
     <div
@@ -26,30 +36,35 @@ export function NotificationsPopover({ activity, lastReadActivityId, onClose }) 
         border: "1px solid #eef0f3",
         borderRadius: 12,
         boxShadow: "0 16px 40px rgba(15,23,42,0.14)",
-        width: 340,
-        maxHeight: 420,
+        width: 360,
+        maxHeight: 460,
         overflowY: "auto",
         zIndex: 70,
       }}
     >
-      <div style={{ padding: "14px 16px", borderBottom: "1px solid #eef0f3", fontWeight: 800, fontSize: 14, color: "#0f172a" }}>
-        Notifications
+      <div style={{ position: "sticky", top: 0, background: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #eef0f3", zIndex: 1 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontWeight: 800, fontSize: 14, color: "#0f172a" }}>Notifications</span>
+          {unreadCount > 0 && (
+            <span style={{ background: ORANGE, color: "#fff", fontSize: 10.5, fontWeight: 700, padding: "2px 7px", borderRadius: 99 }}>{unreadCount}</span>
+          )}
+        </div>
+        {recent.length > 0 && (
+          <button
+            onClick={() => markAllNotifsRead && markAllNotifsRead(ids)}
+            style={{ border: "none", background: "none", fontSize: 12, fontWeight: 600, color: "#64748b", cursor: "pointer", padding: "4px 8px", borderRadius: 6 }}
+          >
+            Mark all read
+          </button>
+        )}
       </div>
+
       {recent.length === 0 && (
-        <div style={{ padding: 24, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>No notifications yet.</div>
+        <div style={{ padding: 28, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>No notifications yet.</div>
       )}
+
       {recent.map((a) => {
-        let isUnread = false;
-        if (lastReadActivityId === null) {
-          isUnread = true;
-        } else if (passedUnread && a.id !== lastReadActivityId) {
-          isUnread = true;
-        } else if (a.id === lastReadActivityId) {
-          passedUnread = false;
-          isUnread = false;
-        } else if (!passedUnread) {
-          isUnread = false;
-        }
+        const unread = isUnread(a);
         return (
           <div
             key={a.id}
@@ -58,24 +73,23 @@ export function NotificationsPopover({ activity, lastReadActivityId, onClose }) 
               gap: 10,
               padding: "12px 16px",
               borderBottom: "1px solid #f3f4f6",
-              background: isUnread ? "#fffaf3" : "#fff",
+              background: unread ? "#fffaf3" : "#fff",
+              alignItems: "flex-start",
             }}
           >
-            <div
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: 99,
-                background: isUnread ? ORANGE : "transparent",
-                flexShrink: 0,
-                marginTop: 5,
-              }}
-            />
+            <div style={{ width: 8, height: 8, borderRadius: 99, background: unread ? ORANGE : "#e2e8f0", flexShrink: 0, marginTop: 6 }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{a.title}</div>
               <div style={{ fontSize: 12, color: "#64748b" }}>{a.desc}</div>
               <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{a.time}</div>
             </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); toggleNotifRead && toggleNotifRead(a.id); }}
+              title={unread ? "Mark as read" : "Mark as unread"}
+              style={{ border: "none", background: "none", cursor: "pointer", padding: "2px 4px", color: unread ? "#94a3b8" : ORANGE, flexShrink: 0, marginTop: 2 }}
+            >
+              {unread ? <MailOpen size={14} /> : <Mail size={14} />}
+            </button>
           </div>
         );
       })}

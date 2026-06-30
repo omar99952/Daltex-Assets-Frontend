@@ -14,7 +14,7 @@ const PAGE_TITLES = {
   contract: "Delivery Contract",
 };
 
-export default function TopBar({ page, userName, userRole, avatarColor, alert, onLogout, activity, lastReadActivityId, onOpenNotifications, settings, updateSetting, onOpenHelpGuide }) {
+export default function TopBar({ page, userName, userRole, avatarColor, alert, onLogout, activity, lastReadActivityId, onOpenNotifications, readNotifIds, toggleNotifRead, markAllNotifsRead, settings, updateSetting, onOpenHelpGuide }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -67,7 +67,7 @@ export default function TopBar({ page, userName, userRole, avatarColor, alert, o
               />
             )}
           </button>
-          {notifOpen && <NotificationsPopover activity={activity} lastReadActivityId={lastReadActivityId} onClose={() => setNotifOpen(false)} />}
+          {notifOpen && <NotificationsPopover activity={activity} lastReadActivityId={lastReadActivityId} readNotifIds={readNotifIds} toggleNotifRead={toggleNotifRead} markAllNotifsRead={markAllNotifsRead} onClose={() => setNotifOpen(false)} />}
         </div>
         <div style={{ position: "relative" }}>
           <button onClick={() => setSettingsOpen((o) => !o)} style={{ border: "none", background: "none", cursor: "pointer", padding: 0, display: "flex" }}>

@@ -23,6 +23,69 @@ function mapBranch(b) {
   };
 }
 
+function SearchableSelect({ options, value, onChange, placeholder }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function handler(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = options.filter((o) => !query || o.label.toLowerCase().includes(query.toLowerCase()));
+  const selected = options.find((o) => o.value === value);
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        onClick={() => { setOpen((s) => !s); setQuery(""); }}
+        style={{ border: "1px solid #eef0f3", borderRadius: 8, padding: "7px 11px", fontSize: 13, color: value ? ORANGE : "#64748b", background: value ? "#fef3e2" : "#fff", cursor: "pointer", outline: "none", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}
+      >
+        {selected ? selected.label : placeholder}
+        <span style={{ fontSize: 9, color: "#94a3b8" }}>▾</span>
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, background: "#fff", border: "1px solid #eef0f3", borderRadius: 8, boxShadow: "0 8px 24px rgba(15,23,42,0.12)", zIndex: 50, minWidth: 190 }}>
+          <div style={{ padding: "8px 8px 4px" }}>
+            <input
+              autoFocus
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="بحث…"
+              style={{ width: "100%", border: "1px solid #eef0f3", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none", boxSizing: "border-box" }}
+            />
+          </div>
+          <div style={{ maxHeight: 180, overflowY: "auto", padding: "4px 0" }}>
+            <button
+              onClick={() => { onChange(null); setOpen(false); setQuery(""); }}
+              style={{ width: "100%", border: "none", background: value === null ? "#fef3e2" : "none", padding: "7px 12px", textAlign: "left", fontSize: 13, color: value === null ? ORANGE : "#475569", cursor: "pointer" }}
+            >
+              {placeholder}
+            </button>
+            {filtered.map((o) => (
+              <button
+                key={o.value}
+                onClick={() => { onChange(o.value); setOpen(false); setQuery(""); }}
+                style={{ width: "100%", border: "none", background: value === o.value ? "#fef3e2" : "none", padding: "7px 12px", textAlign: "left", fontSize: 13, color: value === o.value ? ORANGE : "#475569", cursor: "pointer" }}
+              >
+                {o.label}
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <div style={{ padding: "7px 12px", fontSize: 12, color: "#94a3b8" }}>لا نتائج</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DeptAdvancedSettingsPopover({ deleteEnabled, setDeleteEnabled, onClose }) {
   const ref = useRef(null);
   useEffect(() => {
@@ -61,6 +124,11 @@ export default function BranchDetail() {
   const [addDeptError, setAddDeptError] = useState("");
   const [showEditBranch, setShowEditBranch] = useState(false);
   const [editForm, setEditForm] = useState({ nameEn: "", nameAr: "", location: "" });
+
+  const [deptSearch, setDeptSearch] = useState("");
+  const [deptSort, setDeptSort] = useState("name-asc");
+  const [deptSectorFilter, setDeptSectorFilter] = useState(null);
+  const [deptPage, setDeptPage] = useState(1);
 
   // ── API state ───────────────────────────────────────────────────────────────
   const [apiBranch, setApiBranch] = useState(null);
@@ -116,6 +184,24 @@ export default function BranchDetail() {
 
   const branch = apiBranch;
   const depts = apiDepts || [];
+
+  const DEPT_PAGE_SIZE = 8;
+
+  const filteredDepts = depts
+    .filter(
+      (d) =>
+        (!deptSectorFilter || d.sectorId === deptSectorFilter) &&
+        (!deptSearch || d.name.toLowerCase().includes(deptSearch.toLowerCase()))
+    )
+    .sort((a, b) => {
+      if (deptSort === "name-asc") return a.name.localeCompare(b.name);
+      if (deptSort === "name-desc") return b.name.localeCompare(a.name);
+      if (deptSort === "sector-desc") return b.sectorName.localeCompare(a.sectorName);
+      return a.sectorName.localeCompare(b.sectorName);
+    });
+
+  const deptTotalPages = Math.max(1, Math.ceil(filteredDepts.length / DEPT_PAGE_SIZE));
+  const pagedDepts = filteredDepts.slice((deptPage - 1) * DEPT_PAGE_SIZE, deptPage * DEPT_PAGE_SIZE);
 
   async function handleRemoveDept(dept) {
     if (!deleteDeptEnabled) { setShowDeptError(true); return; }
@@ -230,21 +316,78 @@ export default function BranchDetail() {
         {branchLoading ? (
           <div style={{ fontSize: 13, color: "#94a3b8", padding: "12px 0" }}>Loading departments…</div>
         ) : (
-          <div style={{ display: "flex", gap: 8, marginBottom: 22, marginTop: 12, flexWrap: "wrap" }}>
-            {depts.map((d) => (
-              <span key={d.id} style={{ display: "flex", alignItems: "center", gap: 5, background: "#fef3e2", color: ORANGE, fontSize: 12, fontWeight: 700, padding: "5px 10px", borderRadius: 999 }}>
-                {d.name}
-                {d.sectorName && <span style={{ fontSize: 10, color: "#b45309", fontWeight: 500 }}>({d.sectorName})</span>}
-                <button
-                  onClick={() => handleRemoveDept(d)}
-                  style={{ border: "none", background: "none", cursor: "pointer", color: ORANGE, display: "flex", padding: 0, lineHeight: 1 }}
-                  title="Remove department"
-                >
-                  <X size={11} />
-                </button>
-              </span>
-            ))}
-            {depts.length === 0 && <span style={{ fontSize: 13, color: "#94a3b8" }}>No departments.</span>}
+          <div style={{ marginTop: 12 }}>
+            <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center" }}>
+              <input
+                type="text"
+                value={deptSearch}
+                onChange={(e) => { setDeptSearch(e.target.value); setDeptPage(1); }}
+                placeholder="Search departments…"
+                style={{ flex: 1, border: "1px solid #eef0f3", borderRadius: 8, padding: "7px 11px", fontSize: 13, outline: "none", color: "#0f172a" }}
+              />
+              {apiSectors.length > 0 && (
+                <SearchableSelect
+                  options={apiSectors.map((s) => ({ value: s.id, label: s.name }))}
+                  value={deptSectorFilter}
+                  onChange={(val) => { setDeptSectorFilter(val); setDeptPage(1); }}
+                  placeholder="كل القطاعات"
+                />
+              )}
+              <select
+                value={deptSort}
+                onChange={(e) => { setDeptSort(e.target.value); setDeptPage(1); }}
+                style={{ border: "1px solid #eef0f3", borderRadius: 8, padding: "7px 11px", fontSize: 13, color: "#64748b", background: "#fff", cursor: "pointer", outline: "none" }}
+              >
+                <option value="name-asc">الاسم أ ← ي</option>
+                <option value="name-desc">الاسم ي ← أ</option>
+                <option value="sector-asc">القطاع أ ← ي</option>
+                <option value="sector-desc">القطاع ي ← أ</option>
+              </select>
+            </div>
+
+            {pagedDepts.length === 0 ? (
+              <div style={{ fontSize: 13, color: "#94a3b8", padding: "16px 0" }}>No departments found.</div>
+            ) : (
+              pagedDepts.map((d) => (
+                <div key={d.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f3f4f6" }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{d.name}</div>
+                    {d.sectorName && <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 1 }}>{d.sectorName}</div>}
+                  </div>
+                  <button
+                    onClick={() => handleRemoveDept(d)}
+                    style={{ border: "none", background: "none", cursor: "pointer", color: "#fca5a5", display: "flex", padding: 4 }}
+                    title="Remove department"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))
+            )}
+
+            {deptTotalPages > 1 && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 14 }}>
+                <span style={{ fontSize: 12, color: "#94a3b8" }}>
+                  Page {deptPage} of {deptTotalPages} · {filteredDepts.length} total
+                </span>
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button
+                    onClick={() => setDeptPage((p) => Math.max(1, p - 1))}
+                    disabled={deptPage === 1}
+                    style={{ border: "1px solid #eef0f3", background: "#fff", borderRadius: 7, padding: "5px 12px", fontSize: 12, fontWeight: 700, color: deptPage === 1 ? "#cbd5e1" : "#475569", cursor: deptPage === 1 ? "default" : "pointer" }}
+                  >
+                    ‹ Prev
+                  </button>
+                  <button
+                    onClick={() => setDeptPage((p) => Math.min(deptTotalPages, p + 1))}
+                    disabled={deptPage === deptTotalPages}
+                    style={{ border: "1px solid #eef0f3", background: "#fff", borderRadius: 7, padding: "5px 12px", fontSize: 12, fontWeight: 700, color: deptPage === deptTotalPages ? "#cbd5e1" : "#475569", cursor: deptPage === deptTotalPages ? "default" : "pointer" }}
+                  >
+                    Next ›
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

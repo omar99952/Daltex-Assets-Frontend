@@ -11,14 +11,16 @@ import HelpGuideModal from "./components/HelpGuideModal.jsx";
 import Login from "./pages/Login.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
-import Inventory, { InventoryCategoryPage, AssetDetailPage } from "./pages/Inventory.jsx";
-import EmployeeDirectory from "./pages/EmployeeDirectory.jsx";
+import Inventory from "./pages/Inventory/Inventory.jsx";
+import { InventoryCategoryPage } from "./pages/Inventory/InventoryCategoryPage.jsx";
+import AssetDetailPage from "./pages/Inventory/AssetDetailPage.jsx";import EmployeeDirectory from "./pages/EmployeeDirectory.jsx";
 import EmployeeDetail from "./pages/EmployeeDetail.jsx";
 import Branches from "./pages/Branches.jsx";
 import BranchDetail from "./pages/BranchDetail.jsx";
 import AssignmentsLog from "./pages/AssignmentsLog.jsx";
 import NewAssignment from "./pages/NewAssignment.jsx";
 import ContractPreview from "./pages/ContractPreview.jsx";
+
 
 const NAV_ITEMS = [
   { key: "home", label: "Home", icon: <Home size={17} /> },
@@ -38,6 +40,9 @@ function Shell() {
     inventoryCategory,
     setShowAddDeviceModal,
     lastReadActivityId,
+    readNotifIds,
+    toggleNotifRead,
+    markAllNotifsRead,
     settings,
     updateSetting,
     currentUser,
@@ -117,6 +122,9 @@ function Shell() {
           activity={activity}
           lastReadActivityId={lastReadActivityId}
           onOpenNotifications={markActivityAsRead}
+          readNotifIds={readNotifIds}
+          toggleNotifRead={toggleNotifRead}
+          markAllNotifsRead={markAllNotifsRead}
           settings={settings}
           updateSetting={updateSetting}
           onOpenHelpGuide={() => setShowHelpGuide(true)}

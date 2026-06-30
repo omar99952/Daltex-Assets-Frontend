@@ -11,9 +11,12 @@ export function useApp() {
 export function AppProvider({ children }) {
   const [page, setPageRaw] = useState("home");
   const [pageHistory, setPageHistory] = useState([]);
+
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [selectedAssetId, setSelectedAssetId] = useState(null);
+  const [selectedAssetType, setSelectedAssetType] = useState(null);
   const [selectedBranchId, setSelectedBranchId] = useState(null);
+
   const [lastContract, setLastContract] = useState(null);
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -75,6 +78,7 @@ export function AppProvider({ children }) {
     setIsAuthenticated(false);
     setCurrentUser(null);
     setPageHistory([]);
+    setPageRaw("home");
   }
 
   function goToInventory(statusFilter = null) {
@@ -83,8 +87,9 @@ export function AppProvider({ children }) {
     navigateTo("inventory");
   }
 
-  function openAssetDetail(assetId) {
+  function openAssetDetail(assetId, assetType = null) {
     setSelectedAssetId(assetId);
+    setSelectedAssetType(assetType);
     navigateTo("assetDetail");
   }
 
@@ -101,8 +106,13 @@ export function AppProvider({ children }) {
 
     selectedEmployeeId,
     setSelectedEmployeeId,
+
     selectedAssetId,
     setSelectedAssetId,
+    selectedAssetType,
+    setSelectedAssetType,
+    openAssetDetail,
+
     selectedBranchId,
     setSelectedBranchId,
 
@@ -119,8 +129,6 @@ export function AppProvider({ children }) {
     inventoryCategory,
     setInventoryCategory,
     goToInventory,
-
-    openAssetDetail,
 
     showAddDeviceModal,
     setShowAddDeviceModal,

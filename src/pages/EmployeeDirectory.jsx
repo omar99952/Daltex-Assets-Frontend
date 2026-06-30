@@ -9,6 +9,7 @@ import {
   Settings,
   ChevronDown,
   AlertCircle,
+  Filter,
 } from "lucide-react";
 import { useApp } from "../context/AppContext.jsx";
 import BackButton from "../components/BackButton.jsx";
@@ -140,77 +141,114 @@ function EmployeeRow({ emp, assetCount, branchName, onOpen }) {
 }
 
 function CascadeSelect({ placeholder, value, onChange, options, disabled, errorMsg }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const [showErr, setShowErr] = useState(false);
-  const timer = useRef(null);
+  const ref = useRef(null);
+  const errTimer = useRef(null);
 
-  function handleWrapperClick() {
-    if (!disabled) return;
-    setShowErr(true);
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => setShowErr(false), 2800);
+  useEffect(() => {
+    function handleOut(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleOut);
+    return () => document.removeEventListener("mousedown", handleOut);
+  }, []);
+
+  const selectedLabel = options.find((o) => o.value === value)?.label || null;
+  const filteredOpts = options.filter(
+    (o) => search === "" || o.label.toLowerCase().includes(search.toLowerCase())
+  );
+
+  function handleTrigger() {
+    if (disabled) {
+      setShowErr(true);
+      clearTimeout(errTimer.current);
+      errTimer.current = setTimeout(() => setShowErr(false), 2800);
+    } else {
+      setOpen((o) => !o);
+      setSearch("");
+    }
+  }
+
+  function select(v) {
+    onChange(v || null);
+    setOpen(false);
+    setSearch("");
   }
 
   return (
-    <div style={{ position: "relative", flex: 1 }} onClick={handleWrapperClick}>
-      <select
-        value={value || ""}
-        onChange={(e) => onChange(e.target.value || null)}
+    <div ref={ref} style={{ position: "relative", flex: 1 }}>
+      <button
+        onClick={handleTrigger}
         style={{
           width: "100%",
+          height: 38,
           border: `1px solid ${showErr ? "#fca5a5" : value ? NAVY : "#eef0f3"}`,
           borderRadius: 8,
           padding: "0 32px 0 12px",
-          height: 38,
           fontWeight: 600,
           fontSize: 13,
           color: disabled ? "#94a3b8" : value ? "#0f172a" : "#64748b",
           background: disabled ? "#f8fafc" : "#fff",
           cursor: disabled ? "not-allowed" : "pointer",
-          pointerEvents: disabled ? "none" : "auto",
-          appearance: "none",
+          textAlign: "left",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
           outline: "none",
+          boxSizing: "border-box",
         }}
       >
-        <option value="">{placeholder}</option>
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+          {selectedLabel || <span style={{ color: disabled ? "#94a3b8" : "#64748b" }}>{placeholder}</span>}
+        </span>
+        <ChevronDown size={13} color={disabled ? "#cbd5e1" : value ? NAVY : "#94a3b8"} style={{ flexShrink: 0 }} />
+      </button>
 
-      <ChevronDown
-        size={13}
-        color={disabled ? "#cbd5e1" : value ? NAVY : "#94a3b8"}
-        style={{
-          position: "absolute",
-          right: 10,
-          top: "50%",
-          transform: "translateY(-50%)",
-          pointerEvents: "none",
-        }}
-      />
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, boxShadow: "0 8px 24px rgba(15,23,42,0.12)", zIndex: 90, overflow: "hidden" }}>
+          <div style={{ padding: "7px 8px", borderBottom: "1px solid #f3f4f6" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#f8fafc", borderRadius: 6, padding: "5px 8px" }}>
+              <Search size={12} color="#94a3b8" />
+              <input
+                autoFocus
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search…"
+                style={{ border: "none", outline: "none", fontSize: 12.5, background: "transparent", width: "100%" }}
+              />
+            </div>
+          </div>
+          <div style={{ maxHeight: 200, overflowY: "auto" }}>
+            <div
+              onClick={() => select(null)}
+              style={{ padding: "9px 12px", fontSize: 13, color: "#64748b", cursor: "pointer", fontStyle: "italic", background: !value ? "#fef9f0" : "#fff" }}
+              onMouseEnter={(e) => { if (value) e.currentTarget.style.background = "#f8fafc"; }}
+              onMouseLeave={(e) => { if (value) e.currentTarget.style.background = "#fff"; }}
+            >
+              {placeholder}
+            </div>
+            {filteredOpts.map((opt) => (
+              <div
+                key={opt.value}
+                onClick={() => select(opt.value)}
+                style={{ padding: "9px 12px", fontSize: 13, fontWeight: value === opt.value ? 700 : 400, color: value === opt.value ? NAVY : "#0f172a", background: value === opt.value ? "#f0f5ff" : "#fff", cursor: "pointer" }}
+                onMouseEnter={(e) => { if (value !== opt.value) e.currentTarget.style.background = "#f8fafc"; }}
+                onMouseLeave={(e) => { if (value !== opt.value) e.currentTarget.style.background = "#fff"; }}
+              >
+                {opt.label}
+              </div>
+            ))}
+            {filteredOpts.length === 0 && (
+              <div style={{ padding: "12px", fontSize: 12.5, color: "#94a3b8", textAlign: "center" }}>No matches</div>
+            )}
+          </div>
+        </div>
+      )}
 
       {showErr && (
-        <div
-          style={{
-            position: "absolute",
-            top: "calc(100% + 5px)",
-            left: 0,
-            right: 0,
-            background: "#fef2f2",
-            border: "1px solid #fca5a5",
-            borderRadius: 7,
-            padding: "7px 10px",
-            fontSize: 11.5,
-            color: "#dc2626",
-            fontWeight: 600,
-            zIndex: 60,
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
+        <div style={{ position: "absolute", top: "calc(100% + 5px)", left: 0, right: 0, background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 7, padding: "7px 10px", fontSize: 11.5, color: "#dc2626", fontWeight: 600, zIndex: 60, display: "flex", alignItems: "center", gap: 6 }}>
           <AlertCircle size={12} /> {errorMsg}
         </div>
       )}
@@ -612,7 +650,12 @@ export default function EmployeeDirectory() {
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+          <Filter size={12} color="#94a3b8" />
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", letterSpacing: 0.4, textTransform: "uppercase" }}>Filter</span>
+        </div>
+        <div style={{ width: 1, height: 16, background: "#e2e8f0", flexShrink: 0 }} />
         <CascadeSelect
           placeholder="All Branches"
           value={branchFilter}

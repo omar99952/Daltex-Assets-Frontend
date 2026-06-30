@@ -41,6 +41,69 @@ function mapBranch(b) {
   };
 }
 
+function SearchableSelect({ options, value, onChange, placeholder }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function handler(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const filtered = options.filter((o) => !query || o.label.toLowerCase().includes(query.toLowerCase()));
+  const selected = options.find((o) => o.value === value);
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        onClick={() => { setOpen((s) => !s); setQuery(""); }}
+        style={{ border: "1px solid #eef0f3", borderRadius: 8, padding: "7px 11px", fontSize: 13, color: value ? ORANGE : "#64748b", background: value ? "#fef3e2" : "#fff", cursor: "pointer", outline: "none", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}
+      >
+        {selected ? selected.label : placeholder}
+        <span style={{ fontSize: 9, color: "#94a3b8" }}>▾</span>
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, background: "#fff", border: "1px solid #eef0f3", borderRadius: 8, boxShadow: "0 8px 24px rgba(15,23,42,0.12)", zIndex: 50, minWidth: 200 }}>
+          <div style={{ padding: "8px 8px 4px" }}>
+            <input
+              autoFocus
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search…"
+              style={{ width: "100%", border: "1px solid #eef0f3", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none", boxSizing: "border-box" }}
+            />
+          </div>
+          <div style={{ maxHeight: 200, overflowY: "auto", padding: "4px 0" }}>
+            <button
+              onClick={() => { onChange(null); setOpen(false); setQuery(""); }}
+              style={{ width: "100%", border: "none", background: value === null ? "#fef3e2" : "none", padding: "7px 12px", textAlign: "left", fontSize: 13, color: value === null ? ORANGE : "#475569", cursor: "pointer" }}
+            >
+              {placeholder}
+            </button>
+            {filtered.map((o) => (
+              <button
+                key={o.value}
+                onClick={() => { onChange(o.value); setOpen(false); setQuery(""); }}
+                style={{ width: "100%", border: "none", background: value === o.value ? "#fef3e2" : "none", padding: "7px 12px", textAlign: "left", fontSize: 13, color: value === o.value ? ORANGE : "#475569", cursor: "pointer" }}
+              >
+                {o.label}
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <div style={{ padding: "7px 12px", fontSize: 12, color: "#94a3b8" }}>No results.</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BranchAdvancedSettingsPopover({ deleteEnabled, setDeleteEnabled, onClose }) {
   const ref = useRef(null);
 
@@ -110,8 +173,9 @@ function BranchAdvancedSettingsPopover({ deleteEnabled, setDeleteEnabled, onClos
   );
 }
 
-function FilterPopover({ healthFilter, setHealthFilter, deptFilter, setDeptFilter, allDepts, onClose }) {
+function FilterPopover({ deptFilter, setDeptFilter, allDepts, onClose }) {
   const ref = useRef(null);
+  const [deptSearch, setDeptSearch] = useState("");
 
   useEffect(() => {
     function onClick(e) {
@@ -121,6 +185,10 @@ function FilterPopover({ healthFilter, setHealthFilter, deptFilter, setDeptFilte
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
   }, [onClose]);
+
+  const visibleDepts = allDepts.filter(
+    (d) => !deptSearch || d.toLowerCase().includes(deptSearch.toLowerCase())
+  );
 
   return (
     <div
@@ -138,39 +206,6 @@ function FilterPopover({ healthFilter, setHealthFilter, deptFilter, setDeptFilte
         zIndex: 60,
       }}
     >
-      <div style={{ fontSize: 11.5, fontWeight: 700, color: "#94a3b8", letterSpacing: 0.3, marginBottom: 10 }}>
-        HEALTH STATUS
-      </div>
-
-      {[
-        { key: null, label: "All" },
-        { key: "good", label: "Healthy" },
-        { key: "warning", label: "Needs Attention" },
-      ].map((opt) => (
-        <button
-          key={opt.label}
-          onClick={() => setHealthFilter(opt.key)}
-          style={{
-            width: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            border: "none",
-            background: healthFilter === opt.key ? "#fef3e2" : "none",
-            borderRadius: 7,
-            padding: "8px 10px",
-            fontSize: 13,
-            fontWeight: 600,
-            color: healthFilter === opt.key ? ORANGE : "#475569",
-            cursor: "pointer",
-            marginBottom: 2,
-          }}
-        >
-          {opt.label}
-          {healthFilter === opt.key && <Check size={14} />}
-        </button>
-      ))}
-
       {allDepts.length > 0 && (
         <>
           <div
@@ -179,11 +214,19 @@ function FilterPopover({ healthFilter, setHealthFilter, deptFilter, setDeptFilte
               fontWeight: 700,
               color: "#94a3b8",
               letterSpacing: 0.3,
-              margin: "14px 0 10px",
+              marginBottom: 8,
             }}
           >
             DEPARTMENT
           </div>
+
+          <input
+            type="text"
+            value={deptSearch}
+            onChange={(e) => setDeptSearch(e.target.value)}
+            placeholder="Search departments…"
+            style={{ width: "100%", border: "1px solid #eef0f3", borderRadius: 7, padding: "6px 9px", fontSize: 12.5, outline: "none", marginBottom: 6, boxSizing: "border-box" }}
+          />
 
           <button
             onClick={() => setDeptFilter(null)}
@@ -206,29 +249,34 @@ function FilterPopover({ healthFilter, setHealthFilter, deptFilter, setDeptFilte
             All {deptFilter === null && <Check size={14} />}
           </button>
 
-          {allDepts.map((d) => (
-            <button
-              key={d}
-              onClick={() => setDeptFilter(d)}
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                border: "none",
-                background: deptFilter === d ? "#fef3e2" : "none",
-                borderRadius: 7,
-                padding: "8px 10px",
-                fontSize: 13,
-                fontWeight: 600,
-                color: deptFilter === d ? ORANGE : "#475569",
-                cursor: "pointer",
-                marginBottom: 2,
-              }}
-            >
-              {d} {deptFilter === d && <Check size={14} />}
-            </button>
-          ))}
+          <div style={{ maxHeight: 220, overflowY: "auto" }}>
+            {visibleDepts.map((d) => (
+              <button
+                key={d}
+                onClick={() => setDeptFilter(d)}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  border: "none",
+                  background: deptFilter === d ? "#fef3e2" : "none",
+                  borderRadius: 7,
+                  padding: "8px 10px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: deptFilter === d ? ORANGE : "#475569",
+                  cursor: "pointer",
+                  marginBottom: 2,
+                }}
+              >
+                {d} {deptFilter === d && <Check size={14} />}
+              </button>
+            ))}
+            {visibleDepts.length === 0 && (
+              <div style={{ fontSize: 12.5, color: "#94a3b8", padding: "6px 10px" }}>No results.</div>
+            )}
+          </div>
         </>
       )}
     </div>
@@ -468,8 +516,10 @@ export default function Branches() {
     setDeleteBranchEnabled,
   } = useApp();
 
-  const [healthFilter, setHealthFilter] = useState(null);
+  const [locationFilter, setLocationFilter] = useState(null);
   const [deptFilter, setDeptFilter] = useState(null);
+  const [search, setSearch] = useState("");
+  const [branchPage, setBranchPage] = useState(1);
   const [showFilter, setShowFilter] = useState(false);
   const [showCsvPreview, setShowCsvPreview] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -505,12 +555,18 @@ export default function Branches() {
   const branches = apiBranches || [];
 
   const allDepts = Array.from(new Set(branches.flatMap((b) => b.departments))).sort();
+  const allLocations = Array.from(new Set(branches.map((b) => b.region).filter(Boolean))).sort();
 
   const filteredBranches = branches.filter(
     (b) =>
-      (!healthFilter || b.health === healthFilter) &&
-      (!deptFilter || b.departments.includes(deptFilter))
+      (!locationFilter || b.region === locationFilter) &&
+      (!deptFilter || b.departments.includes(deptFilter)) &&
+      (!search || b.name.toLowerCase().includes(search.toLowerCase()) || b.nameAr.includes(search))
   );
+
+  const BRANCH_PAGE_SIZE = 10;
+  const branchTotalPages = Math.max(1, Math.ceil(filteredBranches.length / BRANCH_PAGE_SIZE));
+  const pagedBranches = filteredBranches.slice((branchPage - 1) * BRANCH_PAGE_SIZE, branchPage * BRANCH_PAGE_SIZE);
 
   const totalAssets = filteredBranches.reduce((s, b) => s + b.assets, 0);
   const totalDepts = new Set(filteredBranches.flatMap((b) => b.departments)).size;
@@ -576,17 +632,16 @@ export default function Branches() {
     setPendingDeleteId(null);
   }
 
-  const csvHeaders = ["BRANCH ID", "BRANCH NAME", "LOCATION", "BRANCH CODE", "HEALTH"];
+  const csvHeaders = ["BRANCH ID", "BRANCH NAME", "LOCATION", "BRANCH CODE"];
 
   const csvRows = filteredBranches.map((b) => ({
     "BRANCH ID": b.id,
     "BRANCH NAME": b.name,
     LOCATION: b.region,
     "BRANCH CODE": b.branchCode || "",
-    HEALTH: b.health === "good" ? "Healthy" : "Needs Attention",
   }));
 
-  const activeFilterCount = (healthFilter ? 1 : 0) + (deptFilter ? 1 : 0);
+  const activeFilterCount = deptFilter ? 1 : 0;
 
   return (
     <div style={{ padding: 28 }}>
@@ -645,13 +700,10 @@ export default function Branches() {
             >
               <Filter size={14} /> Filter {activeFilterCount > 0 && `(${activeFilterCount})`}
             </button>
-
             {showFilter && (
               <FilterPopover
-                healthFilter={healthFilter}
-                setHealthFilter={setHealthFilter}
                 deptFilter={deptFilter}
-                setDeptFilter={setDeptFilter}
+                setDeptFilter={(val) => { setDeptFilter(val); setBranchPage(1); }}
                 allDepts={allDepts}
                 onClose={() => setShowFilter(false)}
               />
@@ -742,7 +794,7 @@ export default function Branches() {
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              padding: "18px 20px",
+              padding: "18px 20px 12px",
             }}
           >
             <div style={{ fontWeight: 800, fontSize: 16, color: "#0f172a" }}>
@@ -760,14 +812,32 @@ export default function Branches() {
             >
               {apiLoading
                 ? "Loading…"
-                : `Displaying ${filteredBranches.length} region${filteredBranches.length === 1 ? "" : "s"}`}
+                : filteredBranches.length === 0
+                ? "No regions"
+                : `${(branchPage - 1) * BRANCH_PAGE_SIZE + 1}–${Math.min(branchPage * BRANCH_PAGE_SIZE, filteredBranches.length)} of ${filteredBranches.length}`}
             </span>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, padding: "0 20px 14px", alignItems: "center" }}>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setBranchPage(1); }}
+              placeholder="Search branches…"
+              style={{ flex: 1, border: "1px solid #eef0f3", borderRadius: 8, padding: "7px 11px", fontSize: 13, outline: "none", color: "#0f172a" }}
+            />
+            <SearchableSelect
+              options={allLocations.map((loc) => ({ value: loc, label: loc }))}
+              value={locationFilter}
+              onChange={(val) => { setLocationFilter(val); setBranchPage(1); }}
+              placeholder="All Locations"
+            />
           </div>
 
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ textAlign: "left" }}>
-                {["BRANCH NAME", "LOCATION", "HEALTH", ""].map((h) => (
+                {["BRANCH NAME", "LOCATION", ""].map((h) => (
                   <th
                     key={h}
                     style={{
@@ -787,18 +857,18 @@ export default function Branches() {
             <tbody>
               {apiLoading ? (
                 <tr>
-                  <td colSpan={4} style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+                  <td colSpan={3} style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
                     Loading branches…
                   </td>
                 </tr>
               ) : filteredBranches.length === 0 ? (
                 <tr>
-                  <td colSpan={4} style={{ padding: 30, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+                  <td colSpan={3} style={{ padding: 30, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
                     No branches match the selected filters.
                   </td>
                 </tr>
               ) : (
-                filteredBranches.map((b) => (
+                pagedBranches.map((b) => (
                   <tr
                     key={b.id}
                     onClick={() => openBranch(b.id)}
@@ -839,18 +909,6 @@ export default function Branches() {
 
                     <td style={{ padding: "14px 20px", fontSize: 13, color: "#475569" }}>
                       {b.region || "—"}
-                    </td>
-
-                    <td style={{ padding: "14px 20px" }}>
-                      <span
-                        style={{
-                          width: 9,
-                          height: 9,
-                          borderRadius: 99,
-                          display: "inline-block",
-                          background: b.health === "good" ? "#16a34a" : "#f59e0b",
-                        }}
-                      />
                     </td>
 
                     <td style={{ padding: "14px 20px" }}>
@@ -905,6 +963,39 @@ export default function Branches() {
               )}
             </tbody>
           </table>
+
+          {branchTotalPages > 1 && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderTop: "1px solid #f3f4f6" }}>
+              <span style={{ fontSize: 12, color: "#94a3b8" }}>
+                Page {branchPage} of {branchTotalPages}
+              </span>
+              <div style={{ display: "flex", gap: 4 }}>
+                <button
+                  onClick={() => setBranchPage((p) => Math.max(1, p - 1))}
+                  disabled={branchPage === 1}
+                  style={{ border: "1px solid #eef0f3", background: "#fff", borderRadius: 7, padding: "5px 12px", fontSize: 12, fontWeight: 700, color: branchPage === 1 ? "#cbd5e1" : "#475569", cursor: branchPage === 1 ? "default" : "pointer" }}
+                >
+                  ‹ Prev
+                </button>
+                {Array.from({ length: branchTotalPages }, (_, i) => i + 1).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setBranchPage(p)}
+                    style={{ border: "1px solid", borderColor: p === branchPage ? NAVY : "#eef0f3", background: p === branchPage ? NAVY : "#fff", borderRadius: 7, padding: "5px 10px", fontSize: 12, fontWeight: 700, color: p === branchPage ? "#fff" : "#475569", cursor: "pointer" }}
+                  >
+                    {p}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setBranchPage((p) => Math.min(branchTotalPages, p + 1))}
+                  disabled={branchPage === branchTotalPages}
+                  style={{ border: "1px solid #eef0f3", background: "#fff", borderRadius: 7, padding: "5px 12px", fontSize: 12, fontWeight: 700, color: branchPage === branchTotalPages ? "#cbd5e1" : "#475569", cursor: branchPage === branchTotalPages ? "default" : "pointer" }}
+                >
+                  Next ›
+                </button>
+              </div>
+            </div>
+          )}
         </Card>
 
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16 }}>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { apiGet, apiPost, apiDelete, apiPatch } from "../api/client.js";
 import { ENDPOINTS } from "../api/endpoints.js";
-import { Boxes, Users, Building2, Wrench, Download, Plus, RotateCcw, ChevronRight, X, MoreVertical, Settings, Trash2, AlertCircle, Pencil } from "lucide-react";
+import { Boxes, Users, Building2, Wrench, Download, Plus, RotateCcw, ChevronRight, X, MoreVertical, Settings, Trash2, AlertCircle, Pencil, Filter, Search, Laptop, ClipboardCheck } from "lucide-react";
 import { useApp } from "../context/AppContext.jsx";
 import BackButton from "../components/BackButton.jsx";
 import Card from "../components/Card.jsx";
@@ -17,16 +17,58 @@ import { Row } from "../components/Misc.jsx";
 import { NAVY, ORANGE } from "../theme.js";
 
 // ── field mappers ──────────────────────────────────────────────────────────────
+function normalizeStatus(s) {
+  const str = (s || "").toLowerCase().replace(/_/g, " ").trim();
+  if (str === "in stock") return "In Stock";
+  if (str === "assigned") return "Assigned";
+  if (str === "repair") return "Repair";
+  if (str === "retired") return "Retired";
+  return s || "In Stock";
+}
+
+function extractCategoryName(cat) {
+  if (!cat && cat !== 0) return "";
+  if (typeof cat === "object") return cat.name_en || cat.name || String(cat.id || "");
+  return String(cat);
+}
+
+function matchesCategory(assetCat, label) {
+  if (!assetCat) return false;
+  const a = String(assetCat).trim().toLowerCase();
+  const l = label.trim().toLowerCase();
+  // "PCs" UI label maps to "Laptops & PCs" in the API
+  const labelAliases = { "pcs": "laptops & pcs" };
+  const dk = labelAliases[l] || l;
+  return a === l || a === dk || a.includes(l) || l.includes(a);
+}
+
+function extractBranchInfo(raw) {
+  if (!raw) return { name: "", dept: "", sector: "" };
+  if (typeof raw === "object") {
+    const dept = raw.department
+      ? (typeof raw.department === "object" ? (raw.department.name || "") : String(raw.department))
+      : "";
+    const sector = raw.sector
+      ? (typeof raw.sector === "object" ? (raw.sector.name || "") : String(raw.sector))
+      : "";
+    return { name: raw.name_en || raw.name || "", dept, sector };
+  }
+  return { name: String(raw), dept: "", sector: "" };
+}
+
 function mapComputer(c) {
+  const branchInfo = extractBranchInfo(c.branch);
   return {
     id: String(c.id),
     brand: c.brand || "",
     model: c.model_or_pn || c.model || "",
     serial: c.serial_number || c.serial || "",
-    status: c.status || "In Stock",
+    status: normalizeStatus(c.status),
     category: "Laptops & PCs",
     condition: c.condition || "",
-    branch: typeof c.branch === "object" ? (c.branch?.name_en || c.branch?.name || "") : (c.branch || ""),
+    branch: branchInfo.name,
+    department: (typeof c.department === "object" ? c.department?.name : c.department) || branchInfo.dept || "",
+    sector: (typeof c.sector === "object" ? c.sector?.name : c.sector) || branchInfo.sector || "",
     assignedTo: c.assigned_to || c.assignedTo || null,
     description: c.description || "",
     deliveryDate: c.delivery_date || "",
@@ -49,15 +91,18 @@ function mapComputer(c) {
   };
 }
 function mapPrinter(p) {
+  const branchInfo = extractBranchInfo(p.branch);
   return {
     id: String(p.id),
     brand: p.brand || "",
     model: p.model_or_pn || p.model || "",
     serial: p.serial_number || p.serial || "",
-    status: p.status || "In Stock",
+    status: normalizeStatus(p.status),
     category: "Printers",
     condition: p.condition || "",
-    branch: typeof p.branch === "object" ? (p.branch?.name_en || p.branch?.name || "") : (p.branch || ""),
+    branch: branchInfo.name,
+    department: (typeof p.department === "object" ? p.department?.name : p.department) || branchInfo.dept || "",
+    sector: (typeof p.sector === "object" ? p.sector?.name : p.sector) || branchInfo.sector || "",
     assignedTo: p.assigned_to || null,
     description: p.description || "",
     deliveryDate: p.delivery_date || "",
@@ -75,18 +120,101 @@ function mapPrinter(p) {
     macAddressWifi: p.mac_address_wifi || null,
   };
 }
+function mapMonitor(m) {
+  const branchInfo = extractBranchInfo(m.branch);
+
+  return {
+    id: String(m.id),
+    brand: m.brand || "",
+    model: m.model_or_pn || m.model || "",
+    serial: m.serial_number || m.serial || "",
+    status: normalizeStatus(m.status),
+    category: "Monitors",
+    condition: m.condition || "",
+
+    branch: branchInfo.name,
+    department:
+      (typeof m.department === "object"
+        ? m.department?.name
+        : m.department) ||
+      branchInfo.dept ||
+      "",
+    sector:
+      (typeof m.sector === "object"
+        ? m.sector?.name
+        : m.sector) ||
+      branchInfo.sector ||
+      "",
+
+    assignedTo: m.assigned_to || null,
+
+    description: m.description || "",
+    deliveryDate: m.delivery_date || "",
+
+    monitorType: m.monitor_type || "",
+    monitorSize: m.monitor_size || "",
+    resolution: m.resolution || "",
+    refreshRate: m.refresh_rate || "",
+    panelType: m.panel_type || "",
+    ports: m.ports || "",
+  };
+}
+function mapTablet(t) {
+  const branchInfo = extractBranchInfo(t.branch);
+
+  return {
+    id: String(t.id),
+    brand: t.brand || "",
+    model: t.model_or_pn || t.model || "",
+    serial: t.serial_number || t.serial || "",
+    status: normalizeStatus(t.status),
+    category: "Tablets",
+    condition: t.condition || "",
+
+    branch: branchInfo.name,
+    department:
+      (typeof t.department === "object"
+        ? t.department?.name
+        : t.department) ||
+      branchInfo.dept ||
+      "",
+    sector:
+      (typeof t.sector === "object"
+        ? t.sector?.name
+        : t.sector) ||
+      branchInfo.sector ||
+      "",
+
+    assignedTo: t.assigned_to || null,
+
+    description: t.description || "",
+    deliveryDate: t.delivery_date || "",
+
+    screenSize: t.screen_size || "",
+    storage: t.storage || "",
+    ram: t.ram || "",
+    operatingSystem: t.operating_system || "",
+    simSupport: t.sim_support || false,
+    imei: t.imei || "",
+  };
+}
 function mapHardwareAsset(a) {
   if (a.pc_type !== undefined) return mapComputer(a);
   if (a.printer_type !== undefined) return mapPrinter(a);
+  if (a.monitor_type !== undefined) return mapMonitor(a);
+  if (a.tablet_type !== undefined) return mapTablet(a);
+  const branchInfo = extractBranchInfo(a.branch);
   return {
     id: String(a.id),
     brand: a.brand || "",
     model: a.model_or_pn || a.model || "",
     serial: a.serial_number || a.serial || "",
-    status: a.status || "In Stock",
-    category: a.category || "",
+    status: normalizeStatus(a.status),
+    category: extractCategoryName(a.category),
     condition: a.condition || "",
-    branch: typeof a.branch === "object" ? (a.branch?.name_en || a.branch?.name || "") : (a.branch || ""),
+    branch: branchInfo.name,
+    department: (typeof a.department === "object" ? a.department?.name : a.department) || branchInfo.dept || "",
+    sector: (typeof a.sector === "object" ? a.sector?.name : a.sector) || branchInfo.sector || "",
     assignedTo: a.assigned_to || null,
     description: a.description || "",
     deliveryDate: a.delivery_date || "",
@@ -277,15 +405,19 @@ function InventoryStatusView({ statusFilter, onClearFilter, onBack }) {
   useEffect(() => {
     async function fetchStatusAssets() {
       try {
-        const [computers, printers, hardware] = await Promise.all([
+        const [computers, printers, hardware, monitors, tablets] = await Promise.all([
           apiGet(ENDPOINTS.get_all_computers).catch(() => []),
           apiGet(ENDPOINTS.get_all_printers).catch(() => []),
           apiGet(ENDPOINTS.get_all_hardware_assets).catch(() => []),
+          apiGet(ENDPOINTS.get_all_monitors).catch(() => []),
+          apiGet(ENDPOINTS.get_all_tablets).catch(() => []),
         ]);
         const all = [
           ...(Array.isArray(computers) ? computers.map(mapComputer) : []),
           ...(Array.isArray(printers) ? printers.map(mapPrinter) : []),
           ...(Array.isArray(hardware) ? hardware.map(mapHardwareAsset) : []),
+          ...(Array.isArray(monitors) ? monitors.map(mapMonitor) : []),
+          ...(Array.isArray(tablets) ? tablets.map(mapTablet) : []),
         ];
         setStatusAssets(all.filter((a) => a.status === statusFilter));
       } finally {
@@ -342,7 +474,7 @@ function InventoryStatusView({ statusFilter, onClearFilter, onBack }) {
             {loading ? (
               <tr><td colSpan={6} style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>Loading assets…</td></tr>
             ) : filtered.map((a) => (
-              <tr key={a.id} onClick={() => openAssetDetail(a.id)} style={{ borderBottom: "1px solid #f3f4f6", cursor: "pointer" }} onMouseEnter={(e) => (e.currentTarget.style.background = "#fafbfc")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+              <tr key={a.id} onClick={() => openAssetDetail(a.id, a.category)} style={{ borderBottom: "1px solid #f3f4f6", cursor: "pointer" }} onMouseEnter={(e) => (e.currentTarget.style.background = "#fafbfc")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
                 <td style={{ padding: "14px 20px", fontSize: 13, color: "#475569" }}>{a.brand}</td>
                 <td style={{ padding: "14px 20px", fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{a.model}</td>
                 <td style={{ padding: "14px 20px", fontSize: 12.5, color: "#94a3b8" }}>SN: {a.serial}</td>
@@ -430,18 +562,65 @@ export function InventoryCategoryPage() {
     try {
       let body;
       let endpoint;
+      const branchVal = form.branchId || form.branch || null;
+      const statusVal = form.status || "In Stock";
       if (label === "PCs" || form.category === "Laptops & PCs") {
-        body = { brand: form.brand, model_or_pn: form.model, serial_number: form.serial, branch: form.branchId || form.branch, status: "Unregistered", pc_type: "Laptop" };
+        body = {
+          brand: form.brand, model_or_pn: form.model, serial_number: form.serial,
+          branch: branchVal, status: statusVal,
+          description: form.description || "", delivery_date: form.deliveryDate || null,
+          pc_type: form.pcType || "Laptop",
+          processor: form.processor || "", memory_ram: form.memoryRam || "", hard_disk: form.hardDisk || "",
+          monitor_brand: form.monitorBrand || null, monitor_model: form.monitorModel || null,
+          monitor_screen_size_in_inches: form.monitorInches ? Number(form.monitorInches) : null,
+          monitor_serial_number: form.monitorSerial || null,
+          keyboard_brand: form.keyboardBrand || null, keyboard_model: form.keyboardModel || null,
+          keyboard_serial_number: form.keyboardSerial || null,
+          mouse_brand: form.mouseBrand || null, mouse_model: form.mouseModel || null,
+          mouse_serial_number: form.mouseSerial || null,
+          bag_brand: form.bagBrand || null, bag_model_or_description: form.bagModelDescription || null,
+        };
         endpoint = ENDPOINTS.post_new_computer;
       } else if (label === "Printers" || form.category === "Printers") {
-        body = { brand: form.brand, model_or_pn: form.model, serial_number: form.serial, branch: form.branchId || form.branch, status: "Unregistered" };
+        body = {
+          brand: form.brand, model_or_pn: form.model, serial_number: form.serial,
+          branch: branchVal, status: statusVal,
+          description: form.description || "", delivery_date: form.deliveryDate || null,
+          printer_type: form.printerType || "", printer_color: form.printerColor || "",
+          technology: form.technology || "", connection_type: form.connectionType || "",
+          multifunctions: !!form.multifunctions,
+          cartridge_number: form.cartridgeNumber || "", cartridge_color: form.cartridgeColor || "",
+          ink_details: form.inkDetails || "",
+          active_connection: form.activeConnection || "",
+          mac_address_eth: form.macAddressEth || null, ip_address_eth: form.ipAddressEth || null,
+          mac_address_wifi: form.macAddressWifi || null,
+        };
         endpoint = ENDPOINTS.post_printer;
+      } else if (label === "Monitors" || form.category === "Monitors") {
+        body = {
+          brand: form.brand, model_or_pn: form.model, serial_number: form.serial,
+          branch: branchVal, status: statusVal,
+          description: form.description || "", delivery_date: form.deliveryDate || null,
+          part_number: form.partNumber || null,
+          inches: form.inches || null,
+          color: form.devColor || null,
+          location_details: form.locationDetails || null,
+          is_meeting_room_tv: !!form.isMeetingRoomTv,
+          is_curved: !!form.isCurved,
+        };
+        endpoint = ENDPOINTS.post_new_monitor;
       } else {
-        body = { brand: form.brand, model_or_pn: form.model, serial_number: form.serial, branch: form.branchId || form.branch, status: "Unregistered", category: form.category };
+        body = {
+          brand: form.brand, model_or_pn: form.model, serial_number: form.serial,
+          branch: branchVal, status: statusVal, category: form.category || label,
+          description: form.description || "", delivery_date: form.deliveryDate || null,
+        };
         endpoint = ENDPOINTS.post_new_hardware_asset;
       }
       const created = await apiPost(endpoint, body);
-      const mapped = label === "PCs" || form.category === "Laptops & PCs" ? mapComputer(created) : label === "Printers" || form.category === "Printers" ? mapPrinter(created) : mapHardwareAsset(created);
+      const mapped = (label === "PCs" || form.category === "Laptops & PCs") ? mapComputer(created)
+        : (label === "Printers" || form.category === "Printers") ? mapPrinter(created)
+        : mapHardwareAsset(created);
       setApiAssets((prev) => [mapped, ...(prev || [])]);
     } catch {
       setApiError("Failed to add device. Please check your connection.");
@@ -500,38 +679,45 @@ export function InventoryCategoryPage() {
         <StatCard icon={<Wrench size={17} color="#dc2626" />} iconBg="#fee2e2" label="IN REPAIR" value={repair} danger sub={<div style={{ fontSize: 12, color: "#94a3b8" }}>Pending fix</div>} />
       </div>
 
-      <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+          <Filter size={12} color="#94a3b8" />
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", letterSpacing: 0.4, textTransform: "uppercase" }}>Filter</span>
+        </div>
+        <div style={{ width: 1, height: 16, background: "#e2e8f0", flexShrink: 0 }} />
         {["All", "Assigned", "Unassigned"].map((f) => (
           <button key={f} onClick={() => setAssignmentFilter(f)} style={{ border: assignmentFilter === f ? "none" : "1px solid #eef0f3", borderRadius: 7, padding: "7px 16px", fontWeight: 700, fontSize: 12.5, color: assignmentFilter === f ? "#fff" : "#475569", background: assignmentFilter === f ? NAVY : "#fff", cursor: "pointer" }}>
             {f}
           </button>
         ))}
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8, border: "1px solid #eef0f3", borderRadius: 7, padding: "7px 12px", background: "#fff" }}>
+          <Search size={13} color="#94a3b8" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search brand, model, serial…" style={{ border: "none", outline: "none", fontSize: 13, width: 220, background: "transparent" }} />
+        </div>
       </div>
 
       <Card style={{ padding: 0 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px" }}>
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by brand, model, serial, or asset ID..." style={{ border: "1px solid #eef0f3", borderRadius: 7, padding: "8px 12px", fontSize: 13, width: 320, outline: "none" }} />
-          <div style={{ fontSize: 12.5, color: "#94a3b8" }}>{apiLoading ? "Loading…" : `Showing 1-${filtered.length} of ${scopeBase.length} items`}</div>
+        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", padding: "12px 20px", borderBottom: "1px solid #eef0f3" }}>
+          <div style={{ fontSize: 12.5, color: "#94a3b8" }}>{apiLoading ? "Loading…" : `${filtered.length} of ${scopeBase.length} items`}</div>
         </div>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ background: "#f8fafc", textAlign: "left" }}>
-              {["BRAND", "MODEL", "SERIAL NUMBER", "STATUS", "ASSIGNED TO", "BRANCH", "", ""].map((h) => (
+              {["BRAND", "MODEL", "SERIAL NUMBER", "STATUS", "ASSIGNED TO", "", ""].map((h) => (
                 <th key={h} style={{ padding: "10px 20px", fontSize: 11, color: "#94a3b8", fontWeight: 700, letterSpacing: 0.3, borderBottom: "1px solid #eef0f3" }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {apiLoading ? (
-              <tr><td colSpan={8} style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>Loading assets…</td></tr>
+              <tr><td colSpan={7} style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>Loading assets…</td></tr>
             ) : filtered.map((a) => (
-              <tr key={a.id} onClick={() => openAssetDetail(a.id)} style={{ borderBottom: "1px solid #f3f4f6", cursor: "pointer" }} onMouseEnter={(e) => (e.currentTarget.style.background = "#fafbfc")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+              <tr key={a.id} onClick={() => openAssetDetail(a.id, inventoryCategory)} style={{ borderBottom: "1px solid #f3f4f6", cursor: "pointer" }} onMouseEnter={(e) => (e.currentTarget.style.background = "#fafbfc")} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
                 <td style={{ padding: "14px 20px", fontSize: 13, color: "#475569" }}>{a.brand}</td>
                 <td style={{ padding: "14px 20px", fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{a.model}</td>
                 <td style={{ padding: "14px 20px", fontSize: 12.5, color: "#94a3b8" }}>SN: {a.serial}</td>
                 <td style={{ padding: "14px 20px" }}><StatusPill status={a.status} /></td>
                 <td style={{ padding: "14px 20px", fontSize: 13, color: "#475569" }}>{a.assignedTo || "—"}</td>
-                <td style={{ padding: "14px 20px", fontSize: 13, color: "#475569" }}>{a.branch}</td>
                 <td style={{ padding: "14px 20px" }}><ChevronRight size={16} color="#cbd5e1" /></td>
                 <td style={{ padding: "14px 20px" }}>
                   <button onClick={(e) => { e.stopPropagation(); if (!deleteAssetEnabled) { setShowDeleteError(true); return; } setPendingDeleteId(a.id); }} title="Delete asset" style={{ border: "none", background: "none", cursor: "pointer", color: "#fca5a5" }}>
@@ -540,7 +726,7 @@ export function InventoryCategoryPage() {
                 </td>
               </tr>
             ))}
-            {!apiLoading && filtered.length === 0 && <tr><td colSpan={8} style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>No assets match your search in this category.</td></tr>}
+            {!apiLoading && filtered.length === 0 && <tr><td colSpan={7} style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>No assets match your search in this category.</td></tr>}
           </tbody>
         </table>
       </Card>
@@ -575,48 +761,167 @@ function DetailSection({ title, children }) {
   );
 }
 
+
+function normalizeHistory(data) {
+  return Array.isArray(data) ? data : data?.results || [];
+}
+
+function getEmployeeFromHistory(h) {
+  if (!h) return null;
+
+  if (h.employee_name) return h.employee_name;
+  if (h.employee_code) return h.employee_code;
+
+  if (typeof h.employee === "object") {
+    return (
+      h.employee.employee_name_en ||
+      h.employee.name_en ||
+      h.employee.name ||
+      h.employee.employee_code ||
+      null
+    );
+  }
+
+  if (typeof h.employee === "string") return h.employee;
+
+  return null;
+}
+
+function getLatestAssignedEmployee(history) {
+  const latestAssign = history.find((h) => {
+    const type = String(h.action || h.type || "").toLowerCase();
+    return type.includes("assign");
+  });
+
+  return getEmployeeFromHistory(latestAssign);
+}
+
 export function AssetDetailPage() {
-  const { selectedAssetId, goBack } = useApp();
+  const { selectedAssetId, selectedAssetType, goBack } = useApp();
+
   const [pendingReturnId, setPendingReturnId] = useState(null);
   const [apiAsset, setApiAsset] = useState(null);
   const [detailLoading, setDetailLoading] = useState(true);
   const [showEdit, setShowEdit] = useState(false);
+  const [assetHistory, setAssetHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   useEffect(() => {
     if (!selectedAssetId) return;
+
     setDetailLoading(true);
-    apiGet(ENDPOINTS.get_hardware_asset_by_id(selectedAssetId))
-      .then((data) => setApiAsset(mapHardwareAsset(data)))
-      .catch(() => setApiAsset(null))
-      .finally(() => setDetailLoading(false));
-  }, [selectedAssetId]);
+    setHistoryLoading(true);
+
+    async function fetchAll() {
+      try {
+        let endpoint;
+        const typeStr = (selectedAssetType || "").toLowerCase();
+
+        if (typeStr === "pcs" || typeStr === "laptops & pcs") {
+          endpoint = ENDPOINTS.get_computer_by_id(selectedAssetId);
+        } else if (typeStr === "printers") {
+          endpoint = ENDPOINTS.get_printer_by_id(selectedAssetId);
+        } else if (typeStr === "monitors") {
+          endpoint = ENDPOINTS.get_monitor_by_id(selectedAssetId);
+        } else {
+          endpoint = ENDPOINTS.get_hardware_asset_by_id(selectedAssetId);
+        }
+
+        const data = await apiGet(endpoint);
+        const mapped = mapHardwareAsset(data);
+
+        if (mapped.serial) {
+          let currentAssignedEmployee = null;
+
+          try {
+            const assignedData = await apiGet(
+              ENDPOINTS.get_assigned_employee_by_serial(mapped.serial)
+            );
+
+            currentAssignedEmployee =
+              assignedData.employee_name_en ||
+              assignedData.employee_name_ar ||
+              assignedData.employee_code ||
+              null;
+          } catch {
+            currentAssignedEmployee = null;
+          }
+
+          try {
+            const hist = await apiGet(
+              ENDPOINTS.history_to_track_assets_by_serial(mapped.serial)
+            );
+
+            const normalizedHistory = normalizeHistory(hist);
+            setAssetHistory(normalizedHistory);
+          } catch {
+            setAssetHistory([]);
+          }
+
+          setApiAsset({
+            ...mapped,
+            assignedTo: currentAssignedEmployee,
+          });
+        } else {
+          setAssetHistory([]);
+          setApiAsset(mapped);
+        }
+      } catch {
+        setApiAsset(null);
+      } finally {
+        setDetailLoading(false);
+        setHistoryLoading(false);
+      }
+    }
+
+    fetchAll();
+  }, [selectedAssetId, selectedAssetType]);
 
   const asset = apiAsset;
 
   async function handleEditSubmit(form) {
     const isComputer = asset.category === "Laptops & PCs";
     const isPrinter = asset.category === "Printers";
+
     try {
       const body = assetToApiBody(form, isComputer, isPrinter);
       let updated;
-      if (isComputer) updated = await apiPatch(ENDPOINTS.update_computer(asset.id), body);
-      else if (isPrinter) updated = await apiPatch(ENDPOINTS.update_printer(asset.id), body);
-      else updated = await apiPatch(ENDPOINTS.update_hardware_asset(asset.id), body);
+
+      if (isComputer) {
+        updated = await apiPatch(ENDPOINTS.update_computer(asset.id), body);
+      } else if (isPrinter) {
+        updated = await apiPatch(ENDPOINTS.update_printer(asset.id), body);
+      } else {
+        updated = await apiPatch(ENDPOINTS.update_hardware_asset(asset.id), body);
+      }
+
       setApiAsset(mapHardwareAsset(updated));
     } catch {
       setApiAsset((prev) => ({ ...(prev || asset), ...form }));
     }
+
     setShowEdit(false);
   }
 
   async function handleReturnToStock(id) {
     try {
       const body = { status: "In Stock" };
-      if (asset.category === "Laptops & PCs") await apiPatch(ENDPOINTS.update_computer(id), body);
-      else if (asset.category === "Printers") await apiPatch(ENDPOINTS.update_printer(id), body);
-      else await apiPatch(ENDPOINTS.update_hardware_asset(id), body);
-      setApiAsset((prev) => prev ? { ...prev, status: "In Stock", assignedTo: null } : null);
-    } catch { /* ignore */ }
+
+      if (asset.category === "Laptops & PCs") {
+        await apiPatch(ENDPOINTS.update_computer(id), body);
+      } else if (asset.category === "Printers") {
+        await apiPatch(ENDPOINTS.update_printer(id), body);
+      } else {
+        await apiPatch(ENDPOINTS.update_hardware_asset(id), body);
+      }
+
+      setApiAsset((prev) =>
+        prev ? { ...prev, status: "In Stock", assignedTo: null } : null
+      );
+    } catch {
+      // ignore
+    }
+
     setPendingReturnId(null);
   }
 
@@ -624,14 +929,35 @@ export function AssetDetailPage() {
     return (
       <div style={{ padding: 60, textAlign: "center" }}>
         <Boxes size={36} color="#cbd5e1" />
-        <div style={{ marginTop: 12, color: "#94a3b8", fontSize: 14 }}>Asset not found.</div>
-        <button onClick={() => goBack()} style={{ marginTop: 16, background: ORANGE, color: "#fff", border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>Go Back</button>
+        <div style={{ marginTop: 12, color: "#94a3b8", fontSize: 14 }}>
+          Asset not found.
+        </div>
+        <button
+          onClick={() => goBack()}
+          style={{
+            marginTop: 16,
+            background: ORANGE,
+            color: "#fff",
+            border: "none",
+            borderRadius: 8,
+            padding: "10px 20px",
+            fontWeight: 700,
+            fontSize: 13,
+            cursor: "pointer",
+          }}
+        >
+          Go Back
+        </button>
       </div>
     );
   }
 
   if (detailLoading && !asset) {
-    return <div style={{ padding: 60, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>Loading asset details…</div>;
+    return (
+      <div style={{ padding: 60, textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+        Loading asset details…
+      </div>
+    );
   }
 
   const isComputer = asset.category === "Laptops & PCs";
@@ -640,31 +966,69 @@ export function AssetDetailPage() {
   return (
     <div style={{ padding: 28, maxWidth: 820 }}>
       <BackButton onClick={() => goBack()} />
+
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
-        <div style={{ width: 52, height: 52, borderRadius: 12, background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div
+          style={{
+            width: 52,
+            height: 52,
+            borderRadius: 12,
+            background: "#e2e8f0",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
           <CategoryIcon category={asset.category} size={24} />
         </div>
+
         <div>
-          <div style={{ fontWeight: 800, fontSize: 20, color: "#0f172a" }}>{asset.brand} {asset.model}</div>
-          <div style={{ fontSize: 13, color: "#94a3b8" }}>SN: {asset.serial}</div>
+          <div style={{ fontWeight: 800, fontSize: 20, color: "#0f172a" }}>
+            {asset.brand} {asset.model}
+          </div>
+          <div style={{ fontSize: 13, color: "#94a3b8" }}>
+            SN: {asset.serial}
+          </div>
         </div>
+
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-          <button onClick={() => setShowEdit(true)} style={{ display: "flex", alignItems: "center", gap: 6, border: "1px solid #eef0f3", background: "#fff", color: "#475569", fontWeight: 700, fontSize: 12.5, padding: "8px 14px", borderRadius: 8, cursor: "pointer" }}>
+          <button
+            onClick={() => setShowEdit(true)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              border: "1px solid #eef0f3",
+              background: "#fff",
+              color: "#475569",
+              fontWeight: 700,
+              fontSize: 12.5,
+              padding: "8px 14px",
+              borderRadius: 8,
+              cursor: "pointer",
+            }}
+          >
             <Pencil size={13} /> Edit
           </button>
+
           <StatusPill status={asset.status} />
         </div>
       </div>
 
       <Card>
-        <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 14 }}>Asset Details</div>
+        <div style={{ fontWeight: 800, fontSize: 15, color: "#0f172a", marginBottom: 14 }}>
+          Asset Details
+        </div>
+
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
           <Row label="Brand" value={asset.brand} />
           <Row label="Model / Part No." value={asset.model} />
           <Row label="Serial Number" value={asset.serial} />
           <Row label="Category" value={asset.category} />
-          <Row label="Condition" value={asset.condition} />
-          <Row label="Branch / Location" value={asset.branch} />
+          <Row label="Condition" value={asset.condition || "—"} />
+          <Row label="Branch / Location" value={asset.branch || "—"} />
+          {asset.department && <Row label="Department" value={asset.department} />}
+          {asset.sector && <Row label="Sector" value={asset.sector} />}
           {asset.deliveryDate && <Row label="Delivery Date" value={asset.deliveryDate} />}
           {asset.description && <Row label="Description" value={asset.description} />}
         </div>
@@ -677,6 +1041,7 @@ export function AssetDetailPage() {
               {asset.memoryRam && <Row label="Memory (RAM)" value={asset.memoryRam} />}
               {asset.hardDisk && <Row label="Storage" value={asset.hardDisk} />}
             </DetailSection>
+
             {(asset.monitorBrand || asset.monitorModel) && (
               <DetailSection title="Monitor">
                 {asset.monitorBrand && <Row label="Brand" value={asset.monitorBrand} />}
@@ -685,13 +1050,29 @@ export function AssetDetailPage() {
                 {asset.monitorSerial && <Row label="Serial" value={asset.monitorSerial} />}
               </DetailSection>
             )}
+
             {(asset.keyboardBrand || asset.mouseBrand || asset.bagBrand) && (
               <DetailSection title="Peripherals">
-                {asset.keyboardBrand && <Row label="Keyboard" value={`${asset.keyboardBrand} ${asset.keyboardModel || ""}`.trim()} />}
+                {asset.keyboardBrand && (
+                  <Row
+                    label="Keyboard"
+                    value={`${asset.keyboardBrand} ${asset.keyboardModel || ""}`.trim()}
+                  />
+                )}
                 {asset.keyboardSerial && <Row label="Keyboard Serial" value={asset.keyboardSerial} />}
-                {asset.mouseBrand && <Row label="Mouse" value={`${asset.mouseBrand} ${asset.mouseModel || ""}`.trim()} />}
+                {asset.mouseBrand && (
+                  <Row
+                    label="Mouse"
+                    value={`${asset.mouseBrand} ${asset.mouseModel || ""}`.trim()}
+                  />
+                )}
                 {asset.mouseSerial && <Row label="Mouse Serial" value={asset.mouseSerial} />}
-                {asset.bagBrand && <Row label="Bag" value={`${asset.bagBrand} — ${asset.bagModelDescription || ""}`.trim()} />}
+                {asset.bagBrand && (
+                  <Row
+                    label="Bag"
+                    value={`${asset.bagBrand} — ${asset.bagModelDescription || ""}`.trim()}
+                  />
+                )}
               </DetailSection>
             )}
           </>
@@ -706,6 +1087,7 @@ export function AssetDetailPage() {
               {asset.connectionType && <Row label="Connection" value={asset.connectionType} />}
               <Row label="Multifunction" value={asset.multifunctions ? "Yes" : "No"} />
             </DetailSection>
+
             {(asset.cartridgeNumber || asset.inkDetails) && (
               <DetailSection title="Cartridge / Ink">
                 {asset.cartridgeNumber && <Row label="Cartridge No." value={asset.cartridgeNumber} />}
@@ -713,6 +1095,7 @@ export function AssetDetailPage() {
                 {asset.inkDetails && <Row label="Ink Details" value={asset.inkDetails} />}
               </DetailSection>
             )}
+
             {(asset.macAddressEth || asset.ipAddressEth || asset.macAddressWifi) && (
               <DetailSection title="Network">
                 {asset.activeConnection && <Row label="Active Connection" value={asset.activeConnection} />}
@@ -725,30 +1108,206 @@ export function AssetDetailPage() {
         )}
 
         <div style={{ borderTop: "1px solid #eef0f3", paddingTop: 18, marginTop: 18 }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: "#94a3b8", letterSpacing: 0.4, marginBottom: 12, textTransform: "uppercase" }}>Assignment</div>
+          <div
+            style={{
+              fontWeight: 700,
+              fontSize: 13,
+              color: "#94a3b8",
+              letterSpacing: 0.4,
+              marginBottom: 12,
+              textTransform: "uppercase",
+            }}
+          >
+            Current Assignment
+          </div>
+
           {asset.assignedTo ? (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#0f172a", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 12 }}>
+                <div
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: "50%",
+                    background: "#0f172a",
+                    color: "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontWeight: 700,
+                    fontSize: 12,
+                  }}
+                >
                   {String(asset.assignedTo).slice(0, 2).toUpperCase()}
                 </div>
+
                 <div>
-                  <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0f172a" }}>{asset.assignedTo}</div>
-                  <div style={{ fontSize: 12, color: "#94a3b8" }}>Assigned employee</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0f172a" }}>
+                    {asset.assignedTo}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#94a3b8" }}>
+                    Assigned employee
+                  </div>
                 </div>
               </div>
-              <button onClick={() => setPendingReturnId(asset.id)} style={{ display: "flex", alignItems: "center", gap: 6, border: "1px solid #eef0f3", background: "#fff", color: "#475569", fontWeight: 700, fontSize: 12.5, padding: "8px 14px", borderRadius: 8, cursor: "pointer" }}>
+
+              <button
+                onClick={() => setPendingReturnId(asset.id)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  border: "1px solid #eef0f3",
+                  background: "#fff",
+                  color: "#475569",
+                  fontWeight: 700,
+                  fontSize: 12.5,
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                }}
+              >
                 <RotateCcw size={13} /> Return to Stock
               </button>
             </div>
           ) : (
-            <div style={{ fontSize: 13, color: "#94a3b8" }}>Not currently assigned.</div>
+            <div style={{ fontSize: 13, color: "#94a3b8" }}>
+              No employee assigned.
+            </div>
+          )}
+        </div>
+
+        <div style={{ borderTop: "1px solid #eef0f3", paddingTop: 18, marginTop: 18 }}>
+          <div
+            style={{
+              fontWeight: 700,
+              fontSize: 13,
+              color: "#94a3b8",
+              letterSpacing: 0.4,
+              marginBottom: 14,
+              textTransform: "uppercase",
+            }}
+          >
+            Assignment History
+          </div>
+
+          {historyLoading ? (
+            <div style={{ fontSize: 13, color: "#94a3b8" }}>Loading history…</div>
+          ) : assetHistory.length === 0 ? (
+            <div style={{ fontSize: 13, color: "#94a3b8" }}>
+              No history found for this asset.
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              {assetHistory.map((h, i) => {
+                const type = (h.action_type || h.action || h.type || "").toLowerCase();
+
+                let icon = <ClipboardCheck size={13} color="#475569" />;
+                let bg = "#e2e8f0";
+
+                if (type === "issue" || type === "assign" || type === "assigned") {
+                  icon = <Laptop size={13} color="#d97706" />;
+                  bg = "#fef3e2";
+                } else if (type === "return" || type === "returned") {
+                  icon = <RotateCcw size={13} color="#16a34a" />;
+                  bg = "#dcfce7";
+                } else if (type === "repair") {
+                  icon = <Wrench size={13} color="#dc2626" />;
+                  bg = "#fee2e2";
+                }
+
+                return (
+                  <div
+                    key={h.id || i}
+                    style={{
+                      display: "flex",
+                      gap: 12,
+                      alignItems: "flex-start",
+                      padding: "10px 0",
+                      borderBottom: "1px solid #f3f4f6",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 30,
+                        height: 30,
+                        borderRadius: 8,
+                        flexShrink: 0,
+                        background: bg,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      {icon}
+                    </div>
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "flex-start",
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a" }}>
+                          {h.employee_name_en ||
+                            h.employee_name_ar ||
+                            h.employee_name ||
+                            h.employee_code ||
+                            getEmployeeFromHistory(h) ||
+                            "—"}
+                        </div>
+
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: "#94a3b8",
+                            flexShrink: 0,
+                            marginLeft: 10,
+                          }}
+                        >
+                          {h.assignment_date || h.date || h.created_at || ""}
+                        </div>
+                      </div>
+
+                      <div style={{ fontSize: 12.5, color: "#64748b", marginTop: 2 }}>
+                        {h.action_type || h.action || h.type || "Event"}
+                        {h.asset_serial ? ` · ${h.asset_serial}` : ""}
+                      </div>
+
+                      {h.notes && (
+                        <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 2 }}>
+                          {h.notes}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       </Card>
 
-      {pendingReturnId && <ConfirmDialog title="Return Asset" message="Are you sure you want to return this asset to stock? It will be marked as unassigned." confirmLabel="Return" danger={false} onConfirm={() => handleReturnToStock(pendingReturnId)} onCancel={() => setPendingReturnId(null)} />}
-      {showEdit && <AssetEditModal asset={asset} onClose={() => setShowEdit(false)} onSubmit={handleEditSubmit} />}
+      {pendingReturnId && (
+        <ConfirmDialog
+          title="Return Asset"
+          message="Are you sure you want to return this asset to stock? It will be marked as unassigned."
+          confirmLabel="Return"
+          danger={false}
+          onConfirm={() => handleReturnToStock(pendingReturnId)}
+          onCancel={() => setPendingReturnId(null)}
+        />
+      )}
+
+      {showEdit && (
+        <AssetEditModal
+          asset={asset}
+          onClose={() => setShowEdit(false)}
+          onSubmit={handleEditSubmit}
+        />
+      )}
     </div>
   );
 }

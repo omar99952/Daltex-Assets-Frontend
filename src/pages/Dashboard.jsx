@@ -24,16 +24,22 @@ export default function Dashboard() {
           apiGet(ENDPOINTS.get_all_branches).catch(() => []),
           apiGet(ENDPOINTS.global_history_to_track_assets).catch(() => []),
         ]);
-        const all = [
-          ...(Array.isArray(computers) ? computers : []),
-          ...(Array.isArray(printers) ? printers : []),
-          ...(Array.isArray(hardware) ? hardware : []),
-        ];
+        // Unwrap paginated DRF responses { count, results } as well as plain arrays
+        const unwrap = (d) => Array.isArray(d) ? d : (d?.results || []);
+        const computersArr = unwrap(computers);
+        const printersArr = unwrap(printers);
+        // Exclude items from hardware-assets that are also in computers/printers
+        // (some backends return all assets from the hardware-assets endpoint)
+        const hardwareArr = unwrap(hardware).filter(
+          (a) => a.pc_type === undefined && a.printer_type === undefined
+        );
+        const all = [...computersArr, ...printersArr, ...hardwareArr];
+        const normalize = (s) => (s || "").trim().toLowerCase();
         setStats({
           total: all.length,
-          assigned: all.filter((a) => (a.status || "").toLowerCase() === "assigned").length,
-          inStock: all.filter((a) => (a.status || "").toLowerCase() === "in stock").length,
-          maintenance: all.filter((a) => (a.status || "").toLowerCase() === "repair").length,
+          assigned: all.filter((a) => normalize(a.status) === "assigned").length,
+          inStock: all.filter((a) => normalize(a.status) === "in stock").length,
+          maintenance: all.filter((a) => normalize(a.status) === "repair").length,
         });
         setBranches(
           (Array.isArray(branchData) ? branchData : []).map((b) => ({
