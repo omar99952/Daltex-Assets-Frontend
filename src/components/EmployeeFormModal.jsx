@@ -1,9 +1,119 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { apiGet } from "../api/client.js";
 import { ENDPOINTS } from "../api/endpoints.js";
 import Modal from "./Modal.jsx";
 import FormField, { inputStyle } from "./FormField.jsx";
 import { ORANGE } from "../theme.js";
+
+function SearchableDropdown({ options, value, onChange, placeholder, disabled = false }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [dropPos, setDropPos] = useState({ top: 0, left: 0, width: 0 });
+  const triggerRef = useRef(null);
+  const dropRef = useRef(null);
+
+  useEffect(() => {
+    function handler(e) {
+      if (
+        triggerRef.current && !triggerRef.current.contains(e.target) &&
+        dropRef.current && !dropRef.current.contains(e.target)
+      ) setOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  function handleOpen() {
+    if (disabled) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    setDropPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    setOpen((s) => !s);
+    setQuery("");
+  }
+
+  const filtered = options.filter(
+    (o) => !query || o.label.toLowerCase().includes(query.toLowerCase())
+  );
+  const selected = options.find((o) => o.value === value);
+
+  return (
+    <div style={{ position: "relative" }}>
+      <button
+        ref={triggerRef}
+        type="button"
+        disabled={disabled}
+        onClick={handleOpen}
+        style={{
+          ...inputStyle,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          cursor: disabled ? "not-allowed" : "pointer",
+          background: disabled ? "#f8fafc" : "#fff",
+          color: selected ? "#0f172a" : "#94a3b8",
+          textAlign: "left",
+          width: "100%",
+          boxSizing: "border-box",
+        }}
+      >
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {selected ? selected.label : placeholder}
+        </span>
+        <span style={{ fontSize: 9, color: "#94a3b8", flexShrink: 0, marginLeft: 6 }}>▾</span>
+      </button>
+
+      {open && (
+        <div
+          ref={dropRef}
+          style={{
+            position: "fixed",
+            top: dropPos.top,
+            left: dropPos.left,
+            width: dropPos.width,
+            background: "#fff",
+            border: "1px solid #eef0f3",
+            borderRadius: 8,
+            boxShadow: "0 8px 24px rgba(15,23,42,0.12)",
+            zIndex: 9999,
+          }}
+        >
+          <div style={{ padding: "8px 8px 4px" }}>
+            <input
+              autoFocus
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search…"
+              style={{ width: "100%", border: "1px solid #eef0f3", borderRadius: 6, padding: "5px 8px", fontSize: 12.5, outline: "none", boxSizing: "border-box" }}
+            />
+          </div>
+          <div style={{ maxHeight: 200, overflowY: "auto", padding: "4px 0" }}>
+            <button
+              type="button"
+              onClick={() => { onChange(""); setOpen(false); setQuery(""); }}
+              style={{ width: "100%", border: "none", background: !value ? "#fef3e2" : "none", padding: "7px 12px", textAlign: "left", fontSize: 13, color: !value ? ORANGE : "#475569", cursor: "pointer" }}
+            >
+              {placeholder}
+            </button>
+            {filtered.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => { onChange(o.value); setOpen(false); setQuery(""); }}
+                style={{ width: "100%", border: "none", background: value === o.value ? "#fef3e2" : "none", padding: "7px 12px", textAlign: "left", fontSize: 13, color: value === o.value ? ORANGE : "#475569", cursor: "pointer" }}
+              >
+                {o.label}
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <div style={{ padding: "7px 12px", fontSize: 12, color: "#94a3b8" }}>No results</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function EmployeeFormModal({ onClose, onSubmit, initialEmployee = null }) {
   const isEdit = !!initialEmployee;
@@ -56,7 +166,6 @@ export default function EmployeeFormModal({ onClose, onSubmit, initialEmployee =
           return;
         }
 
-        // Fallback: fetch departments sector by sector
         const deptNames = new Set();
         await Promise.all(
           sectors.map((s) =>
@@ -84,8 +193,8 @@ export default function EmployeeFormModal({ onClose, onSubmit, initialEmployee =
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  function handleBranchChange(e) {
-    update("branchId", e.target.value);
+  function handleBranchChange(value) {
+    update("branchId", value);
     update("department", "");
   }
 
@@ -104,17 +213,18 @@ export default function EmployeeFormModal({ onClose, onSubmit, initialEmployee =
     });
   }
 
-  const branchSelectStyle = {
-    ...inputStyle,
-    color: form.branchId ? "#0f172a" : "#94a3b8",
-  };
+  const branchOptions = branches.map((b) => ({
+    value: String(b.branch_id || b.id),
+    label: b.name_en || b.name,
+  }));
 
-  const deptSelectStyle = {
-    ...inputStyle,
-    color: form.department ? "#0f172a" : "#94a3b8",
-    cursor: !form.branchId ? "not-allowed" : "pointer",
-    background: !form.branchId ? "#f8fafc" : "#fff",
-  };
+  const deptOptions = departments.map((d) => ({ value: d.name, label: d.name }));
+
+  const deptLabel = loadingDepts
+    ? "Department (loading…)"
+    : !form.branchId
+    ? "Department (select branch first)"
+    : "Department";
 
   return (
     <Modal
@@ -129,32 +239,13 @@ export default function EmployeeFormModal({ onClose, onSubmit, initialEmployee =
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
           <button
             onClick={onClose}
-            style={{
-              border: "1px solid #eef0f3",
-              background: "#fff",
-              color: "#475569",
-              fontWeight: 700,
-              fontSize: 13,
-              padding: "10px 18px",
-              borderRadius: 8,
-              cursor: "pointer",
-            }}
+            style={{ border: "1px solid #eef0f3", background: "#fff", color: "#475569", fontWeight: 700, fontSize: 13, padding: "10px 18px", borderRadius: 8, cursor: "pointer" }}
           >
             Cancel
           </button>
-
           <button
             onClick={handleSubmit}
-            style={{
-              border: "none",
-              background: ORANGE,
-              color: "#fff",
-              fontWeight: 700,
-              fontSize: 13,
-              padding: "10px 20px",
-              borderRadius: 8,
-              cursor: "pointer",
-            }}
+            style={{ border: "none", background: ORANGE, color: "#fff", fontWeight: 700, fontSize: 13, padding: "10px 20px", borderRadius: 8, cursor: "pointer" }}
           >
             {isEdit ? "Save Changes" : "Add Employee"}
           </button>
@@ -162,16 +253,7 @@ export default function EmployeeFormModal({ onClose, onSubmit, initialEmployee =
       }
     >
       {error && (
-        <div
-          style={{
-            background: "#fee2e2",
-            color: "#dc2626",
-            fontSize: 12.5,
-            padding: "10px 12px",
-            borderRadius: 8,
-            marginBottom: 16,
-          }}
-        >
+        <div style={{ background: "#fee2e2", color: "#dc2626", fontSize: 12.5, padding: "10px 12px", borderRadius: 8, marginBottom: 16 }}>
           {error}
         </div>
       )}
@@ -208,44 +290,28 @@ export default function EmployeeFormModal({ onClose, onSubmit, initialEmployee =
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
         <FormField label="Branch">
-          <select value={form.branchId} onChange={handleBranchChange} style={branchSelectStyle}>
-            <option value="">Select branch…</option>
-            {branches.map((b) => (
-              <option key={b.branch_id || b.id} value={String(b.branch_id || b.id)}>
-                {b.name_en || b.name}
-              </option>
-            ))}
-          </select>
+          <SearchableDropdown
+            options={branchOptions}
+            value={form.branchId}
+            onChange={handleBranchChange}
+            placeholder="Select branch…"
+          />
         </FormField>
 
-        <FormField
-          label={
-            loadingDepts
-              ? "Department (loading…)"
-              : !form.branchId
-              ? "Department (select branch first)"
-              : "Department"
-          }
-        >
-          <select
+        <FormField label={deptLabel}>
+          <SearchableDropdown
+            options={deptOptions}
             value={form.department}
-            onChange={(e) => update("department", e.target.value)}
-            disabled={!form.branchId || loadingDepts}
-            style={deptSelectStyle}
-          >
-            <option value="">
-              {loadingDepts
+            onChange={(val) => update("department", val)}
+            placeholder={
+              loadingDepts
                 ? "Loading departments…"
                 : departments.length === 0 && form.branchId
                 ? "No departments found"
-                : "Select department…"}
-            </option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.name}>
-                {d.name}
-              </option>
-            ))}
-          </select>
+                : "Select department…"
+            }
+            disabled={!form.branchId || loadingDepts}
+          />
         </FormField>
       </div>
     </Modal>

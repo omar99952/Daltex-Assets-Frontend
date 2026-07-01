@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Modal from "../Modal.jsx";
 import FormField, { inputStyle } from "../FormField.jsx";
+import SearchableDropdown from "../SearchableDropdown.jsx";
 import { NAVY } from "../../theme.js";
 
 function AssetEditModal({ asset, onClose, onSubmit }) {
@@ -83,13 +84,12 @@ function AssetEditModal({ asset, onClose, onSubmit }) {
         </FormField>
 
         <FormField label="Status">
-          <select value={form.status} onChange={(e) => update("status", e.target.value)} style={inputStyle}>
-            {["In Stock", "Assigned", "Repair", "Retired"].map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
+          <SearchableDropdown
+            options={["In Stock", "Assigned", "Repair", "Retired"].map((s) => ({ value: s, label: s }))}
+            value={form.status}
+            onChange={(val) => update("status", val)}
+            placeholder="Select status…"
+          />
         </FormField>
       </div>
 

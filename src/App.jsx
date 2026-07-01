@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Home, LayoutGrid, Boxes, Users, Building2, ClipboardCheck } from "lucide-react";
+import { Home, Boxes, Wifi, Code2, Mail, Users, Building2, BarChart2, ClipboardCheck, Package } from "lucide-react";
 import "./App.css";
 
 import { AppProvider, useApp } from "./context/AppContext.jsx";
@@ -20,15 +20,24 @@ import BranchDetail from "./pages/BranchDetail.jsx";
 import AssignmentsLog from "./pages/AssignmentsLog.jsx";
 import NewAssignment from "./pages/NewAssignment.jsx";
 import ContractPreview from "./pages/ContractPreview.jsx";
+import StockManagement from "./pages/StockManagement.jsx";
+import DaltexDirectory from "./pages/DaltexDirectory.jsx";
+import AccessoriesPage from "./pages/AccessoriesPage.jsx";
+import SectorDetail from "./pages/SectorDetail.jsx";
+import DepartmentDetail from "./pages/DepartmentDetail.jsx";
 
 
 const NAV_ITEMS = [
-  { key: "home", label: "Home", icon: <Home size={17} /> },
-  { key: "dashboard", label: "Dashboard", icon: <LayoutGrid size={17} /> },
-  { key: "inventory", label: "Assets", icon: <Boxes size={17} /> },
-  { key: "employees", label: "Employees", icon: <Users size={17} /> },
-  { key: "branches", label: "Branches", icon: <Building2 size={17} /> },
+  { key: "home",        label: "Home",        icon: <Home         size={17} /> },
+  { key: "inventory",   label: "Hardware",    icon: <Boxes        size={17} /> },
+  { key: "networking",  label: "Networking",  icon: <Wifi         size={17} />, disabled: true },
+  { key: "software",    label: "Software",    icon: <Code2        size={17} />, disabled: true },
+  { key: "emails",      label: "Emails",      icon: <Mail         size={17} />, disabled: true },
+  { key: "employees",   label: "Employees",   icon: <Users        size={17} /> },
+  { key: "daltex",      label: "Daltex",      icon: <Building2    size={17} /> },
+  { key: "reporting",   label: "Reporting",   icon: <BarChart2    size={17} />, disabled: true },
   { key: "assignments", label: "Assignments", icon: <ClipboardCheck size={17} /> },
+  { key: "stock",       label: "Stock",       icon: <Package      size={17} /> },
 ];
 
 function Shell() {
@@ -83,8 +92,8 @@ function Shell() {
     ? "assignments"
     : page === "employeeDetail"
     ? "employees"
-    : page === "branchDetail"
-    ? "branches"
+    : ["branchDetail", "sectorDetail", "departmentDetail"].includes(page)
+    ? "daltex"
     : ["inventoryCategory", "assetDetail"].includes(page)
     ? "inventory"
     : page;
@@ -104,7 +113,7 @@ function Shell() {
           activePage={activeNav}
           onNavigate={navigate}
           onLogout={logout}
-          brand="DALTEX HQ"
+          brand="DALTEX"
           sub="IT Asset Management"
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
@@ -143,6 +152,11 @@ function Shell() {
           {page === "assignments" && <AssignmentsLog />}
           {page === "newAssignment" && <NewAssignment />}
           {page === "contract" && <ContractPreview />}
+          {page === "stock" && <StockManagement />}
+          {page === "daltex" && <DaltexDirectory />}
+          {page === "accessories" && <AccessoriesPage />}
+          {page === "sectorDetail" && <SectorDetail />}
+          {page === "departmentDetail" && <DepartmentDetail />}
         </div>
       </div>
 

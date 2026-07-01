@@ -673,10 +673,10 @@ export default function Branches() {
       >
         <div>
           <div style={{ fontWeight: 800, fontSize: 22, color: "#0f172a" }}>
-            Branches & Departments
+            Branches
           </div>
           <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 2 }}>
-            {apiLoading ? "Loading…" : `Operational overview of all ${branches.length} regional hubs.`}
+            {apiLoading ? "Loading…" : ""}
           </div>
         </div>
 

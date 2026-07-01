@@ -1,4 +1,4 @@
-import { Plus, Menu } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { NAVY, ORANGE } from "../theme.js";
 import daltexLogo from "../assets/daltex-logo-light-final.png";
 
@@ -12,7 +12,7 @@ export default function Sidebar({ items, activePage, onNavigate, onLogout, brand
         color: "#fff",
         display: "flex",
         flexDirection: "column",
-        padding: collapsed ? "24px 12px" : "24px 16px",
+        padding: collapsed ? "24px 12px" : "24px 3px",
         flexShrink: 0,
         transition: "width .18s ease, padding .18s ease",
         overflow: "hidden",
@@ -45,16 +45,17 @@ export default function Sidebar({ items, activePage, onNavigate, onLogout, brand
             flexShrink: 0,
           }}
         >
-          <Menu size={17} />
+          {collapsed ? <ChevronRight size={17} /> : <ChevronLeft size={17} />}
         </button>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1 }}>
         {items.map((item) => {
           const active = item.key === activePage;
+          const disabled = !!item.disabled;
           return (
             <button
               key={item.key}
-              onClick={() => onNavigate(item.key)}
+              onClick={disabled ? undefined : () => onNavigate(item.key)}
               title={collapsed ? item.label : undefined}
               style={{
                 display: "flex",
@@ -64,14 +65,15 @@ export default function Sidebar({ items, activePage, onNavigate, onLogout, brand
                 padding: collapsed ? "10px" : "10px 12px",
                 borderRadius: 8,
                 border: "none",
-                cursor: "pointer",
+                cursor: disabled ? "default" : "pointer",
                 textAlign: "left",
                 background: active ? ORANGE : "transparent",
-                color: active ? "#fff" : "#cbd5e1",
+                color: active ? "#fff" : disabled ? "rgba(255,255,255,0.25)" : "#cbd5e1",
                 fontSize: 14,
                 fontWeight: active ? 600 : 500,
                 transition: "background .15s",
                 whiteSpace: "nowrap",
+                opacity: disabled ? 0.6 : 1,
               }}
             >
               {item.icon}

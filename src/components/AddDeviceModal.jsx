@@ -3,6 +3,7 @@ import { apiGet } from "../api/client.js";
 import { ENDPOINTS } from "../api/endpoints.js";
 import Modal from "./Modal.jsx";
 import FormField, { inputStyle } from "./FormField.jsx";
+import SearchableDropdown from "./SearchableDropdown.jsx";
 import { ORANGE } from "../theme.js";
 
 const CATEGORIES = ["Laptops & PCs", "Printers", "Monitors", "Networking", "Peripherals"];
@@ -165,9 +166,12 @@ export default function AddDeviceModal({ onClose, onSubmit }) {
       {step === 1 && (
         <>
           <FormField label="Category">
-            <select value={form.category} onChange={(e) => { set("category", e.target.value); setStep(1); }} style={inputStyle}>
-              {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <SearchableDropdown
+              options={CATEGORIES.map((c) => ({ value: c, label: c }))}
+              value={form.category}
+              onChange={(val) => { set("category", val); setStep(1); }}
+              placeholder="Select category…"
+            />
           </FormField>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
@@ -184,18 +188,23 @@ export default function AddDeviceModal({ onClose, onSubmit }) {
               <input value={form.serial} onChange={(e) => set("serial", e.target.value)} placeholder="e.g. SN-882-X90" style={inputStyle} />
             </FormField>
             <FormField label="Status">
-              <select value={form.status} onChange={(e) => set("status", e.target.value)} style={inputStyle}>
-                {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
+              <SearchableDropdown
+                options={STATUSES.map((s) => ({ value: s, label: s }))}
+                value={form.status}
+                onChange={(val) => set("status", val)}
+                placeholder="Select status…"
+              />
             </FormField>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <FormField label="Branch / Location">
-              <select value={form.branchId} onChange={(e) => set("branchId", e.target.value)} style={inputStyle}>
-                <option value="">— Select branch —</option>
-                {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
+              <SearchableDropdown
+                options={branches.map((b) => ({ value: b.id, label: b.name }))}
+                value={form.branchId}
+                onChange={(val) => set("branchId", val)}
+                placeholder="— Select branch —"
+              />
             </FormField>
             <FormField label="Delivery Date">
               <input type="date" value={form.deliveryDate} onChange={(e) => set("deliveryDate", e.target.value)} style={inputStyle} />
@@ -213,9 +222,12 @@ export default function AddDeviceModal({ onClose, onSubmit }) {
         <>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <FormField label="PC Type">
-              <select value={form.pcType} onChange={(e) => set("pcType", e.target.value)} style={inputStyle}>
-                {PC_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
+              <SearchableDropdown
+                options={PC_TYPES.map((t) => ({ value: t, label: t }))}
+                value={form.pcType}
+                onChange={(val) => set("pcType", val)}
+                placeholder="Select type…"
+              />
             </FormField>
             <FormField label="Processor">
               <input value={form.processor} onChange={(e) => set("processor", e.target.value)} placeholder="e.g. Intel i7-1365U" style={inputStyle} />
@@ -299,10 +311,12 @@ export default function AddDeviceModal({ onClose, onSubmit }) {
               <input value={form.partNumber} onChange={(e) => set("partNumber", e.target.value)} placeholder="e.g. LU27B550YKEXXE" style={inputStyle} />
             </FormField>
             <FormField label="Screen Size">
-              <select value={form.inches} onChange={(e) => set("inches", e.target.value)} style={inputStyle}>
-                <option value="">— Select size —</option>
-                {MONITOR_SIZES.map((s) => <option key={s} value={`${s} Inch`}>{s}"</option>)}
-              </select>
+              <SearchableDropdown
+                options={MONITOR_SIZES.map((s) => ({ value: `${s} Inch`, label: `${s}"` }))}
+                value={form.inches}
+                onChange={(val) => set("inches", val)}
+                placeholder="— Select size —"
+              />
             </FormField>
             <FormField label="Color">
               <input value={form.devColor} onChange={(e) => set("devColor", e.target.value)} placeholder="e.g. Black, Silver" style={inputStyle} />
@@ -342,24 +356,36 @@ export default function AddDeviceModal({ onClose, onSubmit }) {
         <>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             <FormField label="Printer Type">
-              <select value={form.printerType} onChange={(e) => set("printerType", e.target.value)} style={inputStyle}>
-                {PRINTER_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
+              <SearchableDropdown
+                options={PRINTER_TYPES.map((t) => ({ value: t, label: t }))}
+                value={form.printerType}
+                onChange={(val) => set("printerType", val)}
+                placeholder="Select type…"
+              />
             </FormField>
             <FormField label="Color">
-              <select value={form.printerColor} onChange={(e) => set("printerColor", e.target.value)} style={inputStyle}>
-                {PRINTER_COLORS.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <SearchableDropdown
+                options={PRINTER_COLORS.map((c) => ({ value: c, label: c }))}
+                value={form.printerColor}
+                onChange={(val) => set("printerColor", val)}
+                placeholder="Select color…"
+              />
             </FormField>
             <FormField label="Technology">
-              <select value={form.technology} onChange={(e) => set("technology", e.target.value)} style={inputStyle}>
-                {TECHNOLOGIES.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
+              <SearchableDropdown
+                options={TECHNOLOGIES.map((t) => ({ value: t, label: t }))}
+                value={form.technology}
+                onChange={(val) => set("technology", val)}
+                placeholder="Select technology…"
+              />
             </FormField>
             <FormField label="Connection Type">
-              <select value={form.connectionType} onChange={(e) => set("connectionType", e.target.value)} style={inputStyle}>
-                {CONNECTION_TYPES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <SearchableDropdown
+                options={CONNECTION_TYPES.map((c) => ({ value: c, label: c }))}
+                value={form.connectionType}
+                onChange={(val) => set("connectionType", val)}
+                placeholder="Select connection…"
+              />
             </FormField>
           </div>
 

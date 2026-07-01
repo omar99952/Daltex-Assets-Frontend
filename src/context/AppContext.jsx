@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 
 const AppCtx = createContext(null);
 
@@ -8,23 +8,52 @@ export function useApp() {
   return ctx;
 }
 
+function loadNav() {
+  try {
+    const stored = localStorage.getItem("daltex_nav");
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+}
+
 export function AppProvider({ children }) {
-  const [page, setPageRaw] = useState("home");
+  const nav = loadNav();
+
+  const [page, setPageRaw] = useState(nav.page || "home");
   const [pageHistory, setPageHistory] = useState([]);
 
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
-  const [selectedAssetId, setSelectedAssetId] = useState(null);
-  const [selectedAssetType, setSelectedAssetType] = useState(null);
-  const [selectedBranchId, setSelectedBranchId] = useState(null);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(nav.selectedEmployeeId ?? null);
+  const [selectedAssetId, setSelectedAssetId] = useState(nav.selectedAssetId ?? null);
+  const [selectedAssetType, setSelectedAssetType] = useState(nav.selectedAssetType ?? null);
+  const [selectedBranchId, setSelectedBranchId] = useState(nav.selectedBranchId ?? null);
+  const [selectedBranchName, setSelectedBranchName] = useState(nav.selectedBranchName ?? null);
+  const [selectedSectorId, setSelectedSectorId] = useState(nav.selectedSectorId ?? null);
+  const [selectedSectorName, setSelectedSectorName] = useState(nav.selectedSectorName ?? null);
+  const [selectedDeptId, setSelectedDeptId] = useState(nav.selectedDeptId ?? null);
+  const [selectedDeptName, setSelectedDeptName] = useState(nav.selectedDeptName ?? null);
 
-  const [lastContract, setLastContract] = useState(null);
+  const [lastContract, setLastContract] = useState(nav.lastContract ?? null);
 
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    try {
+      return localStorage.getItem("daltex_auth") === "true";
+    } catch {
+      return false;
+    }
+  });
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem("daltex_user");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
 
-  const [inventoryStatusFilter, setInventoryStatusFilter] = useState(null);
-  const [inventoryCategory, setInventoryCategory] = useState(null);
-  const [inventoryCategoryId, setInventoryCategoryId] = useState(null);
+  const [inventoryStatusFilter, setInventoryStatusFilter] = useState(nav.inventoryStatusFilter ?? null);
+  const [inventoryCategory, setInventoryCategory] = useState(nav.inventoryCategory ?? null);
+  const [inventoryCategoryId, setInventoryCategoryId] = useState(nav.inventoryCategoryId ?? null);
   const [showAddDeviceModal, setShowAddDeviceModal] = useState(false);
 
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
@@ -45,6 +74,46 @@ export function AppProvider({ children }) {
   const [deleteAssetEnabled, setDeleteAssetEnabled] = useState(false);
   const [deleteBranchEnabled, setDeleteBranchEnabled] = useState(false);
   const [deleteDeptEnabled, setDeleteDeptEnabled] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    try {
+      localStorage.setItem("daltex_nav", JSON.stringify({
+        page,
+        selectedEmployeeId,
+        selectedAssetId,
+        selectedAssetType,
+        selectedBranchId,
+        selectedBranchName,
+        selectedSectorId,
+        selectedSectorName,
+        selectedDeptId,
+        selectedDeptName,
+        inventoryCategory,
+        inventoryCategoryId,
+        inventoryStatusFilter,
+        lastContract,
+      }));
+    } catch {
+      // localStorage full or unavailable
+    }
+  }, [
+    isAuthenticated,
+    page,
+    selectedEmployeeId,
+    selectedAssetId,
+    selectedAssetType,
+    selectedBranchId,
+    selectedBranchName,
+    selectedSectorId,
+    selectedSectorName,
+    selectedDeptId,
+    selectedDeptName,
+    inventoryCategory,
+    inventoryCategoryId,
+    inventoryStatusFilter,
+    lastContract,
+  ]);
 
   function navigateTo(next) {
     setPageHistory((prev) => [...prev, page]);
@@ -73,6 +142,9 @@ export function AppProvider({ children }) {
     setIsAuthenticated(true);
     setPageHistory([]);
     setPageRaw("home");
+    localStorage.setItem("daltex_auth", "true");
+    localStorage.setItem("daltex_user", JSON.stringify(user));
+    localStorage.setItem("daltex_nav", JSON.stringify({ page: "home" }));
   }
 
   function logout() {
@@ -80,6 +152,9 @@ export function AppProvider({ children }) {
     setCurrentUser(null);
     setPageHistory([]);
     setPageRaw("home");
+    localStorage.removeItem("daltex_auth");
+    localStorage.removeItem("daltex_user");
+    localStorage.removeItem("daltex_nav");
   }
 
   function goToInventory(statusFilter = null) {
@@ -116,6 +191,16 @@ export function AppProvider({ children }) {
 
     selectedBranchId,
     setSelectedBranchId,
+    selectedBranchName,
+    setSelectedBranchName,
+    selectedSectorId,
+    setSelectedSectorId,
+    selectedSectorName,
+    setSelectedSectorName,
+    selectedDeptId,
+    setSelectedDeptId,
+    selectedDeptName,
+    setSelectedDeptName,
 
     lastContract,
     setLastContract,
